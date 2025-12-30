@@ -41,7 +41,7 @@ class CostBreakdown extends Controller
             // Get all records grouped by month and account
             $rows = \DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user data to show all data for user
                 ->whereNotNull('cost_records.month_year')
                 ->where('cost_records.month_year', '!=', 'Unknown')
                 ->where('cost_records.month_year', '!=', '')

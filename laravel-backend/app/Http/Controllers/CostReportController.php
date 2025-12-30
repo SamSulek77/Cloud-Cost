@@ -189,7 +189,8 @@ class CostReportController extends Controller
     public function getAllReports(Request $request)
     {
         try {
-            $data = $this->dataOperations->getAllReports($request->user()->id);
+            // ✅ CHANGE: Remove user ID parameter
+            $data = $this->dataOperations->getAllReports();
 
             return response()->json([
                 'success' => true,
@@ -244,10 +245,8 @@ class CostReportController extends Controller
         try {
             $perPage = (int) $request->query('per_page', 10);
 
-            $data = $this->dataOperations->getAllReports(
-                $request->user()?->id,
-                $perPage
-            );
+            // ✅ CHANGE: Remove user ID parameter
+            $data = $this->dataOperations->getAllReports($perPage);
 
             return response()->json($data);
 
@@ -278,7 +277,7 @@ class CostReportController extends Controller
 
         $rows = \DB::table('cost_records')
             ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-            ->where('cost_uploads.user_id', $user->id)
+            //remove user id so that data can be show to all users
             ->whereNotNull('cost_records.month_year')
             ->where('cost_records.month_year', '!=', 'Unknown')
             ->where('cost_records.month_year', '!=', '')

@@ -106,11 +106,13 @@ class CsvReportToData
         ];
     }
 
-        /**
+    /**
      * Save data to database
+     * 
+     * @param int|null $userId User ID or null for system imports
      */
     public function saveToDatabase(
-        int $userId,
+        ?int $userId,
         string $filename,
         array $processedData,
         array $summary,
@@ -133,7 +135,7 @@ class CsvReportToData
                 'filename' => $filename,
                 'month_year' => $uploadMonth,
                 'total_cost' => $summary['total_cost'],
-                'total_records' => count($processedData), // Use count($processedData), not $totalRecords
+                'total_records' => count($processedData),
                 'total_accounts' => $summary['total_accounts'],
                 'uploaded_at' => now(),
             ]);
@@ -198,30 +200,18 @@ class CsvReportToData
     }
 
     /**
-     * Get all reports for a user
+     * Get all reports - visible to all users
      */
-    public function getAllReports(?int $userId, int $perPage = 10): array
+    public function getAllReports(int $perPage = 10): array
     {
-        // Uploads (paginated)
-        $uploadsQuery = CostUpload::query();
-
-        if ($userId !== null) {
-            $uploadsQuery->where('user_id', $userId);
-        }
-
-        $uploads = $uploadsQuery
+        // Show all uploads, regardless of user
+        $uploads = CostUpload::query()
             ->orderBy('uploaded_at', 'desc')
             ->paginate($perPage);
 
-        // Raw records (paginated)
-        $rawRecordsQuery = DB::table('cost_records')
-            ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id');
-
-        if ($userId !== null) {
-            $rawRecordsQuery->where('cost_uploads.user_id', $userId);
-        }
-
-        $rawRecords = $rawRecordsQuery
+        // Raw records (paginated) - no user filter
+        $rawRecords = DB::table('cost_records')
+            ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
             ->select(
                 'cost_records.account_name as LinkedAccountName',
                 'cost_records.usage_end_date as UsageEndDate',
@@ -231,15 +221,9 @@ class CsvReportToData
             ->orderBy('cost_records.usage_end_date', 'desc')
             ->paginate($perPage);
 
-        // Aggregated data (not paginated)
-        $aggregatedQuery = DB::table('cost_records')
-            ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id');
-
-        if ($userId !== null) {
-            $aggregatedQuery->where('cost_uploads.user_id', $userId);
-        }
-
-        $aggregatedData = $aggregatedQuery
+        // Aggregated data (not paginated) - no user filter
+        $aggregatedData = DB::table('cost_records')
+            ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
             ->select(
                 'cost_records.account_name',
                 'cost_records.month_year as month',

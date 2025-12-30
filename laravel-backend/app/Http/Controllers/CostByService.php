@@ -23,12 +23,12 @@ class CostByService extends Controller
                 ], 401);
             }
 
-            Log::info('serviceByAccount: Fetching data for user', ['user_id' => $user->id]);
+            Log::info('serviceByAccount: Fetching daxta for user', ['user_id' => $user->id]);
 
             // Get all records grouped by month, account, and service
             $rows = DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user id to show data to all user
                 ->whereNotNull('cost_records.product_code') // Only records with service info
                 ->whereNotNull('cost_records.month_year')
                 ->where('cost_records.month_year', '!=', 'Unknown')
@@ -97,7 +97,7 @@ class CostByService extends Controller
 
             $query = DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user id to show data to all user
                 ->whereNotNull('cost_records.product_code');
 
             if ($monthYear) {
@@ -154,7 +154,7 @@ class CostByService extends Controller
 
             $query = DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user id to show data to all user
                 ->where('cost_records.account_name', $accountName)
                 ->whereNotNull('cost_records.product_code');
 
@@ -218,7 +218,7 @@ class CostByService extends Controller
 
             $query = DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user id to show data to all user
                 ->whereNotNull('cost_records.product_code');
 
             if ($productCode) {
@@ -323,7 +323,7 @@ class CostByService extends Controller
 
             $months = DB::table('cost_records')
                 ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
-                ->where('cost_uploads.user_id', $user->id)
+                //remove user id to show data to all user
                 ->whereNotNull('cost_records.product_code')
                 ->whereNotNull('cost_records.month_year')
                 ->where('cost_records.month_year', '!=', 'Unknown')
