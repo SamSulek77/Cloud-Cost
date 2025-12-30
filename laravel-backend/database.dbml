@@ -1,0 +1,141 @@
+Table "migrations" {
+  "id" int4 [pk, not null, increment]
+  "migration" varchar(255) [not null]
+  "batch" int4 [not null]
+}
+
+Table "users" {
+  "id" int8 [pk, not null, increment]
+  "name" varchar(255) [not null]
+  "email" varchar(255) [unique, not null]
+  "email_verified_at" timestamp
+  "password" varchar(255) [not null]
+  "remember_token" varchar(100)
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table "password_reset_tokens" {
+  "email" varchar(255) [pk, not null]
+  "token" varchar(255) [not null]
+  "created_at" timestamp
+}
+
+Table "sessions" {
+  "id" varchar(255) [pk, not null]
+  "user_id" int8
+  "ip_address" varchar(45)
+  "user_agent" text
+  "payload" text [not null]
+  "last_activity" int4 [not null]
+
+  Indexes {
+    last_activity [type: btree, name: "sessions_last_activity_index"]
+    user_id [type: btree, name: "sessions_user_id_index"]
+  }
+}
+
+Table "cache" {
+  "key" varchar(255) [pk, not null]
+  "value" text [not null]
+  "expiration" int4 [not null]
+}
+
+Table "cache_locks" {
+  "key" varchar(255) [pk, not null]
+  "owner" varchar(255) [not null]
+  "expiration" int4 [not null]
+}
+
+Table "jobs" {
+  "id" int8 [pk, not null, increment]
+  "queue" varchar(255) [not null]
+  "payload" text [not null]
+  "attempts" int2 [not null]
+  "reserved_at" int4
+  "available_at" int4 [not null]
+  "created_at" int4 [not null]
+
+  Indexes {
+    queue [type: btree, name: "jobs_queue_index"]
+  }
+}
+
+Table "job_batches" {
+  "id" varchar(255) [pk, not null]
+  "name" varchar(255) [not null]
+  "total_jobs" int4 [not null]
+  "pending_jobs" int4 [not null]
+  "failed_jobs" int4 [not null]
+  "failed_job_ids" text [not null]
+  "options" text
+  "cancelled_at" int4
+  "created_at" int4 [not null]
+  "finished_at" int4
+}
+
+Table "failed_jobs" {
+  "id" int8 [pk, not null, increment]
+  "uuid" varchar(255) [unique, not null]
+  "connection" text [not null]
+  "queue" text [not null]
+  "payload" text [not null]
+  "exception" text [not null]
+  "failed_at" timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table "personal_access_tokens" {
+  "id" int8 [pk, not null, increment]
+  "tokenable_type" varchar(255) [not null]
+  "tokenable_id" int8 [not null]
+  "name" text [not null]
+  "token" varchar(64) [unique, not null]
+  "abilities" text
+  "last_used_at" timestamp
+  "expires_at" timestamp
+  "created_at" timestamp
+  "updated_at" timestamp
+
+  Indexes {
+    expires_at [type: btree, name: "personal_access_tokens_expires_at_index"]
+    (tokenable_type, tokenable_id) [type: btree, name: "personal_access_tokens_tokenable_type_tokenable_id_index"]
+  }
+}
+
+Table "cost_uploads" {
+  "id" int8 [pk, not null, increment]
+  "user_id" int8 [not null]
+  "filename" varchar(255) [not null]
+  "month_year" varchar(255) [not null]
+  "total_cost" numeric(15,2) [not null]
+  "total_records" int4 [not null]
+  "total_accounts" int4 [not null]
+  "uploaded_at" timestamp [not null]
+  "created_at" timestamp
+  "updated_at" timestamp
+}
+
+Table "cost_records" {
+  "id" int8 [pk, not null, increment]
+  "upload_id" int8 [not null]
+  "account_name" varchar(255) [not null]
+  "usage_end_date" date [not null]
+  "month_year" varchar(255) [not null]
+  "cost" numeric(15,2) [not null]
+  "created_at" timestamp
+  "updated_at" timestamp
+  "product_code" varchar(255)
+  "product_name" varchar(255)
+
+  Indexes {
+    account_name [type: btree, name: "cost_records_account_name_index"]
+    (account_name, month_year) [type: btree, name: "cost_records_account_name_month_year_index"]
+    (account_name, product_code, month_year) [type: btree, name: "cost_records_account_name_product_code_month_year_index"]
+    month_year [type: btree, name: "cost_records_month_year_index"]
+    product_code [type: btree, name: "cost_records_product_code_index"]
+  }
+}
+
+Ref "cost_records_upload_id_foreign":"cost_uploads"."id" < "cost_records"."upload_id" [delete: cascade]
+
+Ref "cost_uploads_user_id_foreign":"users"."id" < "cost_uploads"."user_id" [delete: cascade]
