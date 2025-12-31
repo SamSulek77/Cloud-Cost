@@ -1,0 +1,20 @@
+@startuml
+title AWS Cost Dashboard – View Monthly Cost Flow
+
+actor User
+participant Frontend
+participant "API Route" as API
+participant "CostReportController" as Controller
+participant "CostService" as Service
+database PostgreSQL as DB
+
+User -> Frontend : Select month
+Frontend -> API : GET /api/costs?month=June
+API -> Controller : index()
+Controller -> Service : getMonthlyCosts(month)
+Service -> DB : SELECT costs
+DB --> Service : cost records
+Service --> Controller : aggregated result
+Controller --> Frontend : JSON response
+Frontend --> User : Render chart
+@enduml

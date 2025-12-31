@@ -1,0 +1,45 @@
+@startuml
+title AWS Cost Dashboard – View Dashboard Data Flow
+
+actor User
+participant Frontend
+participant "API Route" as API
+participant "Controllers" as Controller
+database PostgreSQL as DB
+
+User -> Frontend : Access dashboard
+
+par Monthly Trend
+    Frontend -> API : GET /api/aws/cost-report/monthly-trend
+    API -> Controller : monthlyTrend()
+    Controller -> DB : SELECT month_year, SUM(cost)\nGROUP BY month_year
+    DB --> Controller : monthly data
+    Controller --> Frontend : JSON response
+end
+
+par Account Breakdown
+    Frontend -> API : GET /api/aws/cost-report/account-breakdown
+    API -> Controller : accountBreakdown()
+    Controller -> DB : SELECT month_year, account_name, SUM(cost)\nGROUP BY month, account
+    DB --> Controller : account data
+    Controller --> Frontend : JSON response
+end
+
+par Service Costs
+    Frontend -> API : GET /api/cost/services/top
+    API -> Controller : topServices()
+    Controller -> DB : SELECT product_code, SUM(cost)\nGROUP BY product_code\nORDER BY cost DESC LIMIT 10
+    DB --> Controller : service data
+    Controller --> Frontend : JSON response
+end
+
+Frontend -> Frontend : Render charts
+Frontend --> User : Display dashboard
+
+note right of DB
+  Data from:
+  1. Manual uploads
+  2. S3 webhooks
+  3. Scheduled imports
+end note
+@enduml
