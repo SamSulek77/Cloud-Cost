@@ -27,15 +27,9 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-
+import { Badge } from '@/components/ui/badge';
 const formatCurrency = (value: unknown, decimals = 2) => {
   const num = Number(value);
   if (isNaN(num)) return '$0.00';
@@ -273,159 +267,105 @@ export default function HomePage() {
           )}
         </Card>
 
-        <Card>
+                {/* Cost Breakdown by Account */}
+                <Card>
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <CardTitle>Cost Breakdown by Account</CardTitle>
-                <CardDescription>Bar Chart - Multiple Accounts</CardDescription>
-              </div>
-            </div>
+            <CardTitle>Cost Breakdown by Account</CardTitle>
+            <CardDescription>Bar Chart - Multiple Accounts</CardDescription>
           </CardHeader>
+
           <CardContent>
-            {loadingAccounts ? (
-              <div className="h-[450px] flex items-center justify-center text-muted-foreground">
-                Loading account breakdown...
-              </div>
-            ) : accountError ? (
-              <div className="h-[450px] flex flex-col items-center justify-center text-red-500">
-                <p className="mb-2">{accountError}</p>
-                <button onClick={fetchAccountBreakdown} className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90">
-                  Retry
-                </button>
-              </div>
-            ) : accountData.length === 0 ? (
-              <div className="h-[450px] flex flex-col items-center justify-center text-muted-foreground">
-                <p className="mb-2">No data available</p>
-                <p className="text-sm">Upload a cost report to see account breakdown</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                          <span className="truncate">
-                            {selectedAccounts.length === 0 ? 'Select accounts...' : selectedAccounts.length === accounts.length ? 'All accounts selected' : selectedAccounts.length === 1 ? selectedAccounts[0] : `${selectedAccounts.length} accounts selected`}
-                          </span>
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-[400px] max-h-[400px] overflow-y-auto">
-                        <div className="px-2 py-1.5">
-                          <div className="flex gap-2">
-                            <button onClick={(e) => { e.preventDefault(); selectAllAccounts(); }} className="flex-1 text-xs px-2 py-1 rounded border hover:bg-accent">
-                              Select All
-                            </button>
-                            <button onClick={(e) => { e.preventDefault(); deselectAllAccounts(); }} className="flex-1 text-xs px-2 py-1 rounded border hover:bg-accent">
-                              Clear All
-                            </button>
-                          </div>
-                        </div>
-                        <DropdownMenuSeparator />
-                        {accounts.map((account, index) => (
-                          <DropdownMenuCheckboxItem key={account} checked={selectedAccounts.includes(account)} onCheckedChange={() => toggleAccount(account)} onSelect={(e) => e.preventDefault()}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
-                              <span>{account}</span>
-                            </div>
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                {selectedAccounts.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAccounts.map((account) => {
-                      const colorIndex = accounts.indexOf(account);
-                      return (
-                        <div key={account} className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border" style={{ borderColor: CHART_COLORS[colorIndex % CHART_COLORS.length], backgroundColor: `${CHART_COLORS[colorIndex % CHART_COLORS.length]}20` }}>
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[colorIndex % CHART_COLORS.length] }} />
-                          <span>{account}</span>
-                          <button onClick={() => toggleAccount(account)} className="hover:opacity-70">×</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                    data={accountData}
-                    barCategoryGap={24}   // ✅ spacing between months
-                    barGap={6}            // ✅ spacing between bars in same month
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between min-h-[44px]"
                     >
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}    // ✅ match screenshot (horizontal grid only)
-                        stroke="#e5e7eb"
-                    />
+                      <div className="flex flex-wrap gap-1">
+                        {selectedAccounts.length ? (
+                          selectedAccounts.map((acc) => (
+                            <Badge key={acc} variant="secondary">
+                              {acc}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Select accounts
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
 
-                    <XAxis
-                        dataKey="month"
-                        tickLine={false}
-                        tickMargin={10}
-                        axisLine={false}
-                        tickFormatter={(value) => value.slice(0, 3)}
-                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                    />
-
-                    <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(v) => formatCurrency(v, 0)}
-                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                    />
-
-                    <Tooltip
-                        cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-                        formatter={(value) => formatCurrency(value)}
-                        contentStyle={{
-                        background: 'white',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        }}
-                    />
-
-                    <Legend
-                        verticalAlign="bottom"   // ✅ like screenshot
-                        height={48}
-                        iconType="circle"
-                        wrapperStyle={{
-                        fontSize: '12px',
-                        }}
-                    />
-
-                    {selectedAccounts.map((account) => {
-                        const colorIndex = accounts.indexOf(account);
-                        return (
-                        <Bar
-                            key={account}
-                            dataKey={account}
-                            fill={CHART_COLORS[colorIndex % CHART_COLORS.length]}
-                            radius={[6, 6, 0, 0]}  // ✅ rounded top like screenshot
-                            maxBarSize={36}       // ✅ THICK bars
-                        />
-                        );
-                    })}
-                    </BarChart>
-                </ResponsiveContainer>
-                </div>
-
+                  <PopoverContent className="w-full p-2">
+                    <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                      {accounts.map((account, index) => (
+                        <div
+                          key={account}
+                          className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-accent ${
+                            selectedAccounts.includes(account)
+                              ? 'bg-accent'
+                              : ''
+                          }`}
+                          onClick={() => toggleAccount(account)}
+                        >
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{
+                              backgroundColor:
+                                CHART_COLORS[index % CHART_COLORS.length],
+                            }}
+                          />
+                          <span className="text-sm">{account}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex-col items-start gap-2 text-sm">
-            <div className="leading-none text-muted-foreground">
-              Showing costs for {selectedAccounts.length} of {accounts.length} accounts
+
+              <Button variant="outline" onClick={selectAllAccounts}>
+                Show All
+              </Button>
+              <Button variant="outline" onClick={deselectAllAccounts}>
+                Clear All
+              </Button>
             </div>
+
+            <div className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={accountData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tickFormatter={(v) => v.slice(0, 3)} />
+                  <YAxis tickFormatter={(v) => formatCurrency(v, 0)} />
+                  <Tooltip formatter={(v) => formatCurrency(v)} />
+                  <Legend />
+
+                  {selectedAccounts.map((account) => (
+                    <Bar
+                      key={account}
+                      dataKey={account}
+                      fill={
+                        CHART_COLORS[
+                          accounts.indexOf(account) % CHART_COLORS.length
+                        ]
+                      }
+                      radius={[4, 4, 0, 0]}
+                    />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+
+          <CardFooter className="text-sm text-muted-foreground">
+            Showing costs for {selectedAccounts.length} of {accounts.length} accounts
           </CardFooter>
         </Card>
+
 
         <ServiceCostBarChart/>
       </div>
