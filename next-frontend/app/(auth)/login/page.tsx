@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
+import { API_ENDPOINTS } from '@/lib/constants';
+import { setCookie } from '@/lib/cookies';
 
 type LoginForm = {
   email: string;
@@ -23,8 +25,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await axios.post('/login', form);
-      localStorage.setItem('token', res.data.access_token);
+      const res = await axios.post(API_ENDPOINTS.LOGIN, form);
+      setCookie('token', res.data.access_token);
       router.push('/home');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Invalid email or password');

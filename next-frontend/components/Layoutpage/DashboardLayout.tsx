@@ -1,8 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Home, DollarSign, BarChart3, User } from 'lucide-react';
+import { LogOut, Home, DollarSign, BarChart3, User, Settings } from 'lucide-react';
+import { removeCookie } from '@/lib/cookies';
+import { cn } from '@/lib/utils';
 
 interface User {
   id: number;
@@ -12,14 +14,15 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  user?: User;
+  user?: User | null;
 }
 
 export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    removeCookie('token');
     router.push('/login');
   };
 
@@ -41,35 +44,32 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         <nav className="flex-1 p-4">
           <div className="mb-2">
             <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Navigation
+
             </p>
             <Link
               href="/home"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-900"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+                pathname === '/home'
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
             </Link>
+
             <Link
-              href="/costs"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 mt-1"
+              href="/settings"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium mt-1",
+                pathname === '/settings'
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
             >
-              <DollarSign className="w-4 h-4" />
-              <span>Costs</span>
-            </Link>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 mt-1"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/profile"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 mt-1"
-            >
-              <User className="w-4 h-4" />
-              <span>Profile</span>
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
             </Link>
           </div>
         </nav>

@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import axios from '@/lib/axios';
-
+import { useMemo, useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -30,16 +28,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const CHART_COLORS = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#f97316',
-];
+import { useChartData } from '@/lib/hooks/useChartData';
+import { API_ENDPOINTS, CHART_COLORS } from '@/lib/constants';
+import { ServiceRow, ApiResponse } from '@/types';
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, {
@@ -47,52 +38,33 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
-interface ServiceRow {
-  month_year: string;
-  account_name: string;
-  product_code: string;
-  product_name: string;
-  total_cost: number;
-}
-
 export default function ServiceCostBarChart() {
-  const [rows, setRows] = useState<ServiceRow[]>([]);
-  const [months, setMonths] = useState<string[]>([]);
-  const [accounts, setAccounts] = useState<string[]>([]);
+  const { data: apiResponse, loading, error } = useChartData<ApiResponse<ServiceRow[]>>(API_ENDPOINTS.SERVICE_COSTS);
+
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
-  /* =======================
-     FETCH DATA
-  ======================== */
+  const rows: ServiceRow[] = useMemo(() => {
+    return Array.isArray(apiResponse?.data) ? apiResponse!.data : [];
+  }, [apiResponse]);
+
+  const months = useMemo(() => [...new Set(rows.map(d => d.month_year))], [rows]);
+  const accounts = useMemo(() => [...new Set(rows.map(d => d.account_name))], [rows]);
+
+  // Set default selection when data loads
   useEffect(() => {
-    const fetchData = async () => {
-      const token = localStorage.getItem('token');
-
-      const res = await axios.get('/cost/services/by-account', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data: ServiceRow[] = res.data.data;
-
-      setRows(data);
-      setMonths([...new Set(data.map(d => d.month_year))]);
-      setAccounts([...new Set(data.map(d => d.account_name))]);
-
-      setSelectedMonth(data[0]?.month_year ?? null);
-      setSelectedAccount(data[0]?.account_name ?? null);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, []);
+    if (rows.length > 0) {
+      if (!selectedMonth) setSelectedMonth(rows[0]?.month_year);
+      if (!selectedAccount) setSelectedAccount(rows[0]?.account_name);
+    }
+  }, [rows, selectedMonth, selectedAccount]);
 
   /* =======================
      TRANSFORM FOR BAR CHART
   ======================== */
   const chartData = useMemo(() => {
-    return rows
+    let data = rows
       .filter(r =>
         (!selectedMonth || r.month_year === selectedMonth) &&
         (!selectedAccount || r.account_name === selectedAccount)
@@ -100,9 +72,14 @@ export default function ServiceCostBarChart() {
       .map(r => ({
         service: r.product_name || r.product_code,
         cost: Number(r.total_cost),
-      }))
-      .sort((a, b) => b.cost - a.cost);
-  }, [rows, selectedMonth, selectedAccount]);
+      }));
+
+    if (!showAll) {
+      data = data.filter(d => d.cost > 2.0);
+    }
+
+    return data.sort((a, b) => b.cost - a.cost);
+  }, [rows, selectedMonth, selectedAccount, showAll]);
 
   /* =======================
      UI
@@ -118,10 +95,22 @@ export default function ServiceCostBarChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Service Cost Comparison</CardTitle>
-        <CardDescription>
-          Compare AWS services by account and month
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Service Cost Comparison</CardTitle>
+            <CardDescription>
+              Compare AWS services by account and month
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
+            >
+              {showAll ? 'Hide' : 'Show Others Services'}
+            </button>
+          </div>
+        </div>
 
         {/* FILTERS */}
         <div className="flex gap-4 pt-4">
@@ -154,14 +143,14 @@ export default function ServiceCostBarChart() {
       </CardHeader>
 
       <CardContent>
-        <div className="h-[420px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[1000px]">
+          <ResponsiveContainer width="100%" height="95%">
             <BarChart data={chartData} layout="vertical">
               <CartesianGrid horizontal={false} />
               <YAxis
                 dataKey="service"
                 type="category"
-                width={180}
+                width={250}
                 tickLine={false}
                 axisLine={false}
               />
