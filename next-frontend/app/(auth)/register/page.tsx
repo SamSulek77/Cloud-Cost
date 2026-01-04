@@ -7,6 +7,8 @@ import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { API_ENDPOINTS } from '@/lib/constants';
 
+import AnimatedBackground from '@/components/ui/AnimatedBackground';
+
 type RegisterForm = {
     name: string;
     email: string;
@@ -46,72 +48,75 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen p-4 bg-background">
-            <div className="w-full max-w-md space-y-6 bg-card border border-border p-8 rounded-lg shadow-lg">
+        <AnimatedBackground>
+            <div className="w-full max-w-md space-y-6 bg-white/80 backdrop-blur-md border border-white/20 p-8 rounded-xl shadow-2xl">
                 <div className="space-y-2 text-center">
-                    <h2 className="text-3xl font-bold tracking-tight">Create an Account</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Enter your details to create your account
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">Create an Account</h2>
+                    <p className="text-sm text-slate-500">
+                        Join us to start managing your cloud costs
                     </p>
                 </div>
 
                 {error && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm">
+                    <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-md text-sm">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
-                        <label htmlFor="name" className="text-sm font-medium">Name</label>
+                        <label htmlFor="name" className="text-sm font-medium text-slate-700">Full Name</label>
                         <input
                             id="name"
                             type="text"
+                            placeholder="John Doe"
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            className="w-full h-10 px-3 py-2 border border-input bg-background rounded-md text-sm"
+                            className="w-full h-11 px-3 py-2 border border-slate-200 bg-white/50 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                             required
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="email" className="text-sm font-medium">Email</label>
+                        <label htmlFor="email" className="text-sm font-medium text-slate-700">Email Address</label>
                         <input
                             id="email"
                             type="email"
+                            placeholder="name@company.com"
                             value={form.email}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
-                            className="w-full h-10 px-3 py-2 border border-input bg-background rounded-md text-sm"
+                            className="w-full h-11 px-3 py-2 border border-slate-200 bg-white/50 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                             required
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="password" className="text-sm font-medium">Password</label>
+                        <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
                         <input
                             id="password"
                             type="password"
+                            placeholder="••••••••"
                             value={form.password}
                             onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            className="w-full h-10 px-3 py-2 border border-input bg-background rounded-md text-sm"
+                            className="w-full h-11 px-3 py-2 border border-slate-200 bg-white/50 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                             required
                             minLength={6}
                         />
-                        <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
+                        <p className="text-[11px] text-slate-400">Security requirement: at least 6 characters</p>
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? 'Creating account...' : 'Sign Up'}
+                    <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors" disabled={loading}>
+                        {loading ? 'Creating account...' : 'Create Account'}
                     </Button>
                 </form>
 
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm text-slate-500">
                     Already have an account?{' '}
-                    <Link href="/login" className="font-medium text-primary hover:underline">
-                        Sign In
+                    <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+                        Sign in instead
                     </Link>
                 </p>
             </div>
-        </div>
+        </AnimatedBackground>
     );
 }

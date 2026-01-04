@@ -106,7 +106,20 @@ export default function MonthlyTrendChart() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(value) => value.slice(0, 3)} />
                                 <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => formatCurrency(v, 0)} />
-                                <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+                                <Tooltip
+                                    formatter={(v: number) => formatCurrency(v)}
+                                    contentStyle={{
+                                        background: 'rgba(255, 255, 255, 0.7)',
+                                        backdropFilter: 'blur(8px)',
+                                        border: '1px solid rgba(229, 231, 235, 0.3)',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                        padding: '8px 12px'
+                                    }}
+                                    itemStyle={{ fontSize: '12px', fontWeight: 500 }}
+                                    labelStyle={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b', marginBottom: '4px' }}
+                                    wrapperStyle={{ pointerEvents: 'none', zIndex: 50 }}
+                                />
                                 <Area type="monotone" dataKey="total_cost" stroke="#3b82f6" strokeWidth={2} fill="url(#fillCost)" />
                             </AreaChart>
                         </ResponsiveContainer>

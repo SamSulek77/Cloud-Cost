@@ -2,7 +2,7 @@
 
 import '@/lib/recharts-fix';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Calendar } from 'lucide-react';
 import {
     BarChart,
     Bar,
@@ -24,6 +24,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { useChartData } from '@/lib/hooks/useChartData';
 import { API_ENDPOINTS, CHART_COLORS } from '@/lib/constants';
 import { AccountBreakdownPoint, ApiResponse } from '@/types';
@@ -38,6 +45,10 @@ export default function AccountBreakdownChart() {
     const { data: apiResponse, loading, error, refetch } = useChartData<ApiResponse<AccountBreakdownPoint[]>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN);
     const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
+    // Simple Time Filter State
+    const [timeFilter, setTimeFilter] = useState<'ALL' | 'H1' | 'H2'>('ALL');
+    const [focusedMonth, setFocusedMonth] = useState<string | null>(null);
+
     const hasInitialized = useRef(false);
 
     // Derived state for data and accounts list
@@ -46,15 +57,36 @@ export default function AccountBreakdownChart() {
             return { accountData: [], accounts: [] };
         }
 
-        const sortedData = apiResponse.data.sort((a, b) => {
+        let processedData = apiResponse.data.sort((a, b) => {
             const dateA = new Date(a.month + ' 1');
             const dateB = new Date(b.month + ' 1');
             return dateA.getTime() - dateB.getTime();
         });
 
+        // Apply Time Filter (only if not focused)
+        if (!focusedMonth && timeFilter !== 'ALL') {
+            processedData = processedData.filter(d => {
+                const date = new Date(d.month + ' 1');
+                const monthIndex = date.getMonth(); // 0 = Jan, 11 = Dec
+
+                if (timeFilter === 'H1') {
+                    // Jan (0) to Jun (5)
+                    return monthIndex <= 5;
+                } else {
+                    // Jul (6) to Dec (11)
+                    return monthIndex >= 6;
+                }
+            });
+        }
+
+        // Apply Focus Filter
+        if (focusedMonth) {
+            processedData = processedData.filter(d => d.month === focusedMonth);
+        }
+
         const accountsList = apiResponse.accounts ?? [];
-        return { accountData: sortedData, accounts: accountsList };
-    }, [apiResponse]);
+        return { accountData: processedData, accounts: accountsList };
+    }, [apiResponse, timeFilter, focusedMonth]);
 
     // Auto-select all accounts ONLY when first loaded
     useEffect(() => {
@@ -73,16 +105,56 @@ export default function AccountBreakdownChart() {
     const selectAllAccounts = () => setSelectedAccounts(accounts);
     const deselectAllAccounts = () => setSelectedAccounts([]);
 
+    const handleChartClick = (data: any) => {
+        if (data && data.activeLabel && !focusedMonth) {
+            setFocusedMonth(data.activeLabel);
+        }
+    };
+
     return (
         <Card className="bg-white shadow-sm">
-            <CardHeader className="border-b border-gray-100">
+            <CardHeader className="border-b border-gray-100 flex flex-row items-center justify-between">
                 <div className="space-y-1">
-                    <CardTitle className="text-base font-semibold text-gray-900">
-                        Cost Breakdown by Account
+                    <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                        Cost Breakdown
+                        {focusedMonth && (
+                            <span className="text-gray-400 font-normal">
+                                / {focusedMonth}
+                            </span>
+                        )}
                     </CardTitle>
                     <CardDescription className="text-sm text-gray-500">
-                        Bar Chart - Multiple Accounts
+                        {focusedMonth ? 'Showing detailed breakdown for selected month' : 'Bar Chart - Click on a month to expand details'}
                     </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {focusedMonth ? (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setFocusedMonth(null)}
+                            className="h-9 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium"
+                        >
+                            Back to Overview
+                        </Button>
+                    ) : (
+                        <div className="w-[200px]">
+                            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+                                <SelectTrigger className="h-9 bg-white border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-gray-500" />
+                                        <SelectValue placeholder="Period" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Full Year</SelectItem>
+                                    <SelectItem value="H1">First Half (Jan-Jun)</SelectItem>
+                                    <SelectItem value="H2">Second Half (Jul-Dec)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </div>
             </CardHeader>
 
@@ -103,8 +175,8 @@ export default function AccountBreakdownChart() {
                     </div>
                 ) : accountData.length === 0 ? (
                     <div className="h-[450px] flex flex-col items-center justify-center text-gray-500">
-                        <p className="mb-2">No data available</p>
-                        <p className="text-sm">Upload a cost report to see account breakdown</p>
+                        <p className="mb-2">No data available for this period</p>
+                        <p className="text-sm">Try changing the time filter or uploading more reports</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -119,7 +191,7 @@ export default function AccountBreakdownChart() {
                                                     <span className="text-gray-500 text-sm">Select accounts...</span>
                                                 ) : selectedAccounts.length === accounts.length ? (
                                                     <Badge variant="secondary" className="text-xs">
-                                                        All accounts selected
+                                                        All accounts selected ({accounts.length})
                                                     </Badge>
                                                 ) : (
                                                     <>
@@ -185,40 +257,61 @@ export default function AccountBreakdownChart() {
                         </div>
 
                         {/* Bar Chart */}
-                        <div className="h-[400px]">
+                        <div className="h-[550px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={accountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                <BarChart
+                                    data={accountData}
+                                    margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                                    onClick={handleChartClick}
+                                    style={{ cursor: focusedMonth ? 'default' : 'pointer' }}
+                                >
                                     <CartesianGrid
                                         strokeDasharray="3 3"
                                         vertical={false}
-                                        stroke="#e5e7eb"
+                                        stroke="#7186b4ff"
                                         strokeOpacity={0.5}
                                     />
                                     <XAxis
                                         dataKey="month"
                                         tickLine={false}
                                         axisLine={false}
-                                        tickMargin={10}
-                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                        tickMargin={16}
+                                        tick={{ fill: '#060c18ff', fontSize: 13 }}
                                         tickFormatter={(v) => v.slice(0, 3)}
                                     />
                                     <YAxis
                                         tickLine={false}
                                         axisLine={false}
                                         tickMargin={10}
-                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                        tick={{ fill: '#08152eff', fontSize: 14 }}
                                         tickFormatter={(v) => formatCurrency(v, 0)}
                                     />
                                     <Tooltip
                                         formatter={(v) => formatCurrency(v)}
                                         contentStyle={{
-                                            background: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                            background: 'rgba(255, 255, 255, 0.7)',
+                                            backdropFilter: 'blur(8px)',
+                                            border: '1px solid rgba(229, 231, 235, 0.3)',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            padding: '8px 12px',
                                         }}
+                                        itemStyle={{
+                                            padding: '0px',
+                                            fontSize: '11px',
+                                            fontWeight: 500,
+                                            lineHeight: '1.4'
+                                        }}
+                                        labelStyle={{
+                                            fontWeight: 'bold',
+                                            marginBottom: '6px',
+                                            fontSize: '12px',
+                                            color: '#1e293b'
+                                        }}
+                                        cursor={{ fill: 'rgba(113, 134, 180, 0.1)' }}
+                                        wrapperStyle={{ pointerEvents: 'none', zIndex: 50 }}
                                     />
-                                    <Legend verticalAlign="top" height={36} iconType="rect" />
+                                    <Legend verticalAlign="top" height={96} iconType="rect" />
                                     {selectedAccounts.map((account) => (
                                         <Bar
                                             key={account}
@@ -234,8 +327,9 @@ export default function AccountBreakdownChart() {
                 )}
             </CardContent>
 
-            <CardFooter className="text-sm text-gray-500 border-t border-gray-100 pt-4">
-                Showing costs for {selectedAccounts.length} of {accounts.length} accounts
+            <CardFooter className="text-sm text-gray-500 border-t border-gray-100 pt-4 flex justify-between">
+                <span>Showing costs for {selectedAccounts.length} of {accounts.length} accounts</span>
+                <span>Period: {focusedMonth ? focusedMonth : (timeFilter === 'ALL' ? 'Full Year' : timeFilter === 'H1' ? 'First Half' : 'Second Half')}</span>
             </CardFooter>
         </Card>
     );

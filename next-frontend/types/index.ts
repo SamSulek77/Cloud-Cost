@@ -31,3 +31,15 @@ export interface ApiResponse<T> {
     accounts?: string[];
     grouped?: any;
 }
+
+export interface SettingsData {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+}
+
+export interface UploadResponse {
+    success: boolean;
+    message?: string;
+    error?: string;
+}
+

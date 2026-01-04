@@ -20,4 +20,6 @@ export const API_ENDPOINTS = {
     USER_PROFILE: '/user',
     REGISTER: '/register',
     LOGIN: '/login',
+    SETTINGS: '/user/settings',
+    UPLOAD: '/aws/cost-report/upload',
 };

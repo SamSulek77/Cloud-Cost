@@ -74,6 +74,7 @@ export default function ServiceCostBarChart() {
         cost: Number(r.total_cost),
       }));
 
+    //show only services with cost > 2.0
     if (!showAll) {
       data = data.filter(d => d.cost > 2.0);
     }
@@ -158,12 +159,25 @@ export default function ServiceCostBarChart() {
                 type="number"
                 tickFormatter={(v) => formatCurrency(v)}
               />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Tooltip
+                formatter={(v: number) => formatCurrency(v)}
+                contentStyle={{
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(229, 231, 235, 0.3)',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  padding: '8px 12px'
+                }}
+                itemStyle={{ fontSize: '12px', fontWeight: 500 }}
+                labelStyle={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b', marginBottom: '4px' }}
+                wrapperStyle={{ pointerEvents: 'none', zIndex: 50 }}
+              />
 
               <Bar dataKey="cost" radius={[0, 6, 6, 0]}>
-                {chartData.map((_, index) => (
+                {chartData.map((entry, index) => (
                   <Cell
-                    key={index}
+                    key={`cell-${index}`}
                     fill={CHART_COLORS[index % CHART_COLORS.length]}
                   />
                 ))}
