@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/Layoutpage/SideBarLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -10,10 +11,17 @@ import axios from '@/lib/axios'; // Use configured axios instance
 import { API_ENDPOINTS } from '@/lib/constants';
 
 export default function UploadPage() {
-    const { user } = useAuth();
+    const { user, loading: loadingUser } = useAuth();
+    const router = useRouter();
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    useEffect(() => {
+        if (!loadingUser && user && user.role !== 'admin') {
+            router.push('/home');
+        }
+    }, [user, loadingUser, router]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -114,8 +122,8 @@ export default function UploadPage() {
                         {/* Status Message */}
                         {message && (
                             <div className={`flex items-center gap-2 p-3 rounded-md text-sm ${message.type === 'success'
-                                    ? 'bg-green-50 text-green-700 border border-green-100'
-                                    : 'bg-red-50 text-red-700 border border-red-100'
+                                ? 'bg-green-50 text-green-700 border border-green-100'
+                                : 'bg-red-50 text-red-700 border border-red-100'
                                 }`}>
                                 {message.type === 'success' ? (
                                     <CheckCircle className="h-4 w-4" />

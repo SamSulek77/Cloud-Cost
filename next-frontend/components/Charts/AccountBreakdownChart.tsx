@@ -106,7 +106,9 @@ export default function AccountBreakdownChart() {
     const deselectAllAccounts = () => setSelectedAccounts([]);
 
     const handleChartClick = (data: any) => {
-        if (data && data.activeLabel && !focusedMonth) {
+        if (focusedMonth) {
+            setFocusedMonth(null);
+        } else if (data && data.activeLabel) {
             setFocusedMonth(data.activeLabel);
         }
     };
@@ -124,7 +126,7 @@ export default function AccountBreakdownChart() {
                         )}
                     </CardTitle>
                     <CardDescription className="text-sm text-gray-500">
-                        {focusedMonth ? 'Showing detailed breakdown for selected month' : 'Bar Chart - Click on a month to expand details'}
+                        {focusedMonth ? 'Showing detailed breakdown (Click chart to return)' : 'Bar Chart - Click on a month to expand details'}
                     </CardDescription>
                 </div>
 
@@ -263,7 +265,7 @@ export default function AccountBreakdownChart() {
                                     data={accountData}
                                     margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                                     onClick={handleChartClick}
-                                    style={{ cursor: focusedMonth ? 'default' : 'pointer' }}
+                                    style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid
                                         strokeDasharray="3 3"

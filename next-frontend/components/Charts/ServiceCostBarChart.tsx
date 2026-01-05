@@ -74,12 +74,15 @@ export default function ServiceCostBarChart() {
         cost: Number(r.total_cost),
       }));
 
-    //show only services with cost > 2.0
+    // Sort data by cost descending (Highest first)
+    data = data.sort((a, b) => b.cost - a.cost);
+
+    // If not showing all is used, take only top 5
     if (!showAll) {
-      data = data.filter(d => d.cost > 2.0);
+      data = data.slice(0, 5);
     }
 
-    return data.sort((a, b) => b.cost - a.cost);
+    return data;
   }, [rows, selectedMonth, selectedAccount, showAll]);
 
   /* =======================
@@ -100,7 +103,7 @@ export default function ServiceCostBarChart() {
           <div>
             <CardTitle>Service Cost Comparison</CardTitle>
             <CardDescription>
-              Compare AWS services by account and month
+              {showAll ? 'Comparing all services by cost' : 'Top 5 highest cost services'}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -108,7 +111,7 @@ export default function ServiceCostBarChart() {
               onClick={() => setShowAll(!showAll)}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
             >
-              {showAll ? 'Hide' : 'Show Others Services'}
+              {showAll ? 'Top services' : 'Show All Services'}
             </button>
           </div>
         </div>
@@ -144,7 +147,7 @@ export default function ServiceCostBarChart() {
       </CardHeader>
 
       <CardContent>
-        <div className="h-[1000px]">
+        <div className={showAll ? "h-[1000px]" : "h-[400px]"}>
           <ResponsiveContainer width="100%" height="95%">
             <BarChart data={chartData} layout="vertical">
               <CartesianGrid horizontal={false} />

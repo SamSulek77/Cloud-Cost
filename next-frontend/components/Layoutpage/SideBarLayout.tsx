@@ -7,11 +7,7 @@ import { LogOut, Home, Settings, Upload, ChevronLeft, ChevronRight, TrendingUp, 
 import { removeCookie } from '@/lib/cookies';
 import { cn } from '@/lib/utils';
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
+import { User } from '@/types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -38,6 +34,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     router.push('/login');
   };
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -47,6 +45,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           isCollapsed ? "w-20" : "w-64"
         )}
       >
+        {/* ... (Toggle Button and Logo remain same - skipped for brevity in replacement if not touched) */}
         {/* Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -105,7 +104,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 )}
               </div>
 
-              {/* Sub-navigation items (only when open and not collapsed) */}
+              {/* Sub-navigation items */}
               {!isCollapsed && isHomeSubMenuOpen && (
                 <div className="ml-9 space-y-1 border-l border-gray-100 pl-2 py-1 flex flex-col overflow-hidden transition-all duration-300">
                   <a
@@ -133,35 +132,39 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
               )}
             </div>
 
-            <Link
-              href="/upload"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname === '/upload'
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-100",
-                isCollapsed && "justify-center px-0"
-              )}
-              title={isCollapsed ? "Upload" : undefined}
-            >
-              <Upload className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span>Upload</span>}
-            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  href="/upload"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    pathname === '/upload'
+                      ? "bg-gray-100 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-100",
+                    isCollapsed && "justify-center px-0"
+                  )}
+                  title={isCollapsed ? "Upload" : undefined}
+                >
+                  <Upload className="w-5 h-5 shrink-0" />
+                  {!isCollapsed && <span>Upload</span>}
+                </Link>
 
-            <Link
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname === '/settings'
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-100",
-                isCollapsed && "justify-center px-0"
-              )}
-              title={isCollapsed ? "Settings" : undefined}
-            >
-              <Settings className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span>Settings</span>}
-            </Link>
+                <Link
+                  href="/settings"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    pathname === '/settings'
+                      ? "bg-gray-100 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-100",
+                    isCollapsed && "justify-center px-0"
+                  )}
+                  title={isCollapsed ? "Settings" : undefined}
+                >
+                  <Settings className="w-5 h-5 shrink-0" />
+                  {!isCollapsed && <span>Settings</span>}
+                </Link>
+              </>
+            )}
           </div>
         </nav>
 
@@ -178,7 +181,17 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-gray-500 truncate max-w-[80px]">{user.email}</p>
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded font-medium border",
+                        isAdmin
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
+                      )}>
+                        {isAdmin ? 'Admin' : 'Viewer'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
