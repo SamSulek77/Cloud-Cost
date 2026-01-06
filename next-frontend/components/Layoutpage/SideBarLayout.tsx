@@ -149,24 +149,31 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                   {!isCollapsed && <span>Upload</span>}
                 </Link>
 
-                <Link
-                  href="/settings"
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    pathname === '/settings'
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-600 hover:bg-gray-100",
-                    isCollapsed && "justify-center px-0"
-                  )}
-                  title={isCollapsed ? "Settings" : undefined}
-                >
-                  <Settings className="w-5 h-5 shrink-0" />
-                  {!isCollapsed && <span>Settings</span>}
-                </Link>
+
               </>
             )}
           </div>
         </nav>
+
+        {/* Settings */}
+        {isAdmin && (
+          <div className="px-4 pb-2">
+            <Link
+              href="/settings"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                pathname === '/settings'
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100",
+                isCollapsed && "justify-center px-0"
+              )}
+              title={isCollapsed ? "Settings" : undefined}
+            >
+              <Settings className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Settings</span>}
+            </Link>
+          </div>
+        )}
 
         {/* User Info & Logout */}
         <div className="border-t border-gray-200">
@@ -181,17 +188,15 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs text-gray-500 truncate max-w-[80px]">{user.email}</p>
-                      <span className={cn(
-                        "text-[10px] px-1.5 py-0.5 rounded font-medium border",
-                        isAdmin
-                          ? "bg-purple-50 text-purple-700 border-purple-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                      )}>
-                        {isAdmin ? 'Admin' : 'Viewer'}
-                      </span>
-                    </div>
+                    <p className="text-xs text-gray-500 truncate mb-1">{user.email}</p>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium border",
+                      isAdmin
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                    )}>
+                      {isAdmin ? 'Admin' : 'Viewer'}
+                    </span>
                   </div>
                 )}
               </div>
