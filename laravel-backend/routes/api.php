@@ -45,11 +45,11 @@ Route::middleware('auth:sanctum')->get('/user', fn(Request $request) => $request
 Route::get('/costs', [CostReportController::class, 'index']);
 
 // Original Manual Upload (keep this for backwards compatibility)
-Route::middleware('auth:sanctum')
+Route::middleware(['auth:sanctum', 'role:admin'])
     ->post('/aws/cost-report/upload', [CostReportController::class, 'uploadReport']);
 
 // NEW: S3 Import Routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     // List files in S3
     Route::get('/aws/s3/cost-reports/list', [S3CostReportController::class, 'listS3Files']);
     
