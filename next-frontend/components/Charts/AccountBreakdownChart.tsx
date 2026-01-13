@@ -41,15 +41,52 @@ const formatCurrency = (value: unknown, decimals = 2) => {
     return `$${num.toFixed(decimals)}`;
 };
 
-export default function AccountBreakdownChart() {
+interface AccountBreakdownChartProps {
+    onFilterChange?: (filter: string) => void;
+}
+
+export default function AccountBreakdownChart({ onFilterChange }: AccountBreakdownChartProps) {
     const { data: apiResponse, loading, error, refetch } = useChartData<ApiResponse<AccountBreakdownPoint[]>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN);
     const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
     // Simple Time Filter State
-    const [timeFilter, setTimeFilter] = useState<'ALL' | 'H1' | 'H2'>('ALL');
+    const [timeFilter, setTimeFilter] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
     const [focusedMonth, setFocusedMonth] = useState<string | null>(null);
 
     const hasInitialized = useRef(false);
+    const hasSetDefaultFilter = useRef(false);
+
+    // Notify parent of filter change
+    useEffect(() => {
+        if (onFilterChange) {
+            onFilterChange(timeFilter);
+        }
+    }, [timeFilter, onFilterChange]);
+
+    // Auto-select latest quarter based on data
+    useEffect(() => {
+        if (apiResponse?.data && apiResponse.data.length > 0 && !hasSetDefaultFilter.current) {
+            // Sort to find latest month
+            const sortedData = [...apiResponse.data].sort((a, b) => {
+                return new Date(a.month + ' 1').getTime() - new Date(b.month + ' 1').getTime();
+            });
+            const latestItem = sortedData[sortedData.length - 1];
+
+            if (latestItem) {
+                const date = new Date(latestItem.month + ' 1');
+                const monthIndex = date.getMonth();
+
+                let quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q1';
+                if (monthIndex >= 0 && monthIndex <= 2) quarter = 'Q1';
+                else if (monthIndex >= 3 && monthIndex <= 5) quarter = 'Q2';
+                else if (monthIndex >= 6 && monthIndex <= 8) quarter = 'Q3';
+                else quarter = 'Q4';
+
+                setTimeFilter(quarter);
+                hasSetDefaultFilter.current = true;
+            }
+        }
+    }, [apiResponse]);
 
     // Derived state for data and accounts list
     const { accountData, accounts } = useMemo(() => {
@@ -69,12 +106,18 @@ export default function AccountBreakdownChart() {
                 const date = new Date(d.month + ' 1');
                 const monthIndex = date.getMonth(); // 0 = Jan, 11 = Dec
 
-                if (timeFilter === 'H1') {
-                    // Jan (0) to Jun (5)
-                    return monthIndex <= 5;
+                if (timeFilter === 'Q1') {
+                    // Jan (0) to Mar (2)
+                    return monthIndex >= 0 && monthIndex <= 2;
+                } else if (timeFilter === 'Q2') {
+                    // Apr (3) to Jun (5)
+                    return monthIndex >= 3 && monthIndex <= 5;
+                } else if (timeFilter === 'Q3') {
+                    // Jul (6) to Sep (8)
+                    return monthIndex >= 6 && monthIndex <= 8;
                 } else {
-                    // Jul (6) to Dec (11)
-                    return monthIndex >= 6;
+                    // Oct (9) to Dec (11)
+                    return monthIndex >= 9 && monthIndex <= 11;
                 }
             });
         }
@@ -151,8 +194,10 @@ export default function AccountBreakdownChart() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">Full Year</SelectItem>
-                                    <SelectItem value="H1">First Half (Jan-Jun)</SelectItem>
-                                    <SelectItem value="H2">Second Half (Jul-Dec)</SelectItem>
+                                    <SelectItem value="Q1">Quarter 1 (Jan-Mar)</SelectItem>
+                                    <SelectItem value="Q2">Quarter 2 (Apr-Jun)</SelectItem>
+                                    <SelectItem value="Q3">Quarter 3 (Jul-Sep)</SelectItem>
+                                    <SelectItem value="Q4">Quarter 4 (Oct-Dec)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -331,7 +376,11 @@ export default function AccountBreakdownChart() {
 
             <CardFooter className="text-sm text-gray-500 border-t border-gray-100 pt-4 flex justify-between">
                 <span>Showing costs for {selectedAccounts.length} of {accounts.length} accounts</span>
-                <span>Period: {focusedMonth ? focusedMonth : (timeFilter === 'ALL' ? 'Full Year' : timeFilter === 'H1' ? 'First Half' : 'Second Half')}</span>
+                <span>Period: {focusedMonth ? focusedMonth : (timeFilter === 'ALL' ? 'Full Year' :
+                    timeFilter === 'Q1' ? 'Quarter 1 (Jan-Mar)' :
+                        timeFilter === 'Q2' ? 'Quarter 2 (Apr-Jun)' :
+                            timeFilter === 'Q3' ? 'Quarter 3 (Jul-Sep)' :
+                                'Quarter 4 (Oct-Dec)')}</span>
             </CardFooter>
         </Card>
     );

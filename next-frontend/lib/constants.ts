@@ -17,9 +17,12 @@ export const API_ENDPOINTS = {
     MONTHLY_TREND: '/aws/cost-report/monthly-trend',
     ACCOUNT_BREAKDOWN: '/aws/cost-report/account-breakdown',
     SERVICE_COSTS: '/cost/services/by-account',
+    SERVICE_DETAILS: '/cost/services/account',
+    SERVICE_TRENDS: '/cost/services/trends',
     USER_PROFILE: '/user',
     REGISTER: '/register',
     LOGIN: '/login',
     SETTINGS: '/user/settings',
     UPLOAD: '/aws/cost-report/upload',
+    COST_INVESTIGATION: '/cost/investigation/compare',
 };

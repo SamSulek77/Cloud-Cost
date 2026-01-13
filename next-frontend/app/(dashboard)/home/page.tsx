@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useChartData } from '@/lib/hooks/useChartData';
 import { API_ENDPOINTS } from '@/lib/constants';
@@ -10,11 +10,13 @@ import MonthlyTrendChart from '@/components/Charts/MonthlyTrendChart';
 import AccountBreakdownChart from '@/components/Charts/AccountBreakdownChart';
 import ServiceCostBarChart from '@/components/Charts/ServiceCostBarChart';
 import AccountCostTable from '@/components/Tables/AccountCostTable';
+import AccountTrendTable from '@/components/Tables/AccountTrendTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
+import { DollarSign, Users, CreditCard, Activity, Database } from 'lucide-react';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const [breakdownFilter, setBreakdownFilter] = useState<string>('Q1');
 
   // Fetch Monthly Trend Data for KPI
   const { data: trendResponse } = useChartData<ApiResponse<ChartPoint[]>>(API_ENDPOINTS.MONTHLY_TREND);
@@ -26,7 +28,7 @@ export default function HomePage() {
   const { data: serviceResponse } = useChartData<ApiResponse<any[]>>(API_ENDPOINTS.SERVICE_COSTS);
 
   // Calculate Total Cost KPI
-  const { currentTotalCost, kpiTrendPercentage } = useMemo(() => {
+  const { currentTotalCost, kpiTrendPercentage, trendDetails } = useMemo(() => {
     if (!trendResponse?.data || !Array.isArray(trendResponse.data) || trendResponse.data.length === 0) {
       return { currentTotalCost: 0, kpiTrendPercentage: 0 };
     }
@@ -54,7 +56,13 @@ export default function HomePage() {
 
     return {
       currentTotalCost: totalCumulativeCost,
-      kpiTrendPercentage: trend
+      kpiTrendPercentage: trend,
+      trendDetails: {
+        diff: (latestMonth && previousMonth) ? Number(latestMonth.total_cost) - Number(previousMonth.total_cost) : 0,
+        prevCost: previousMonth ? Number(previousMonth.total_cost) : 0,
+        currentMonthName: latestMonth ? new Date(latestMonth.month + ' 1').toLocaleString('default', { month: 'short' }) : '',
+        prevMonthName: previousMonth ? new Date(previousMonth.month + ' 1').toLocaleString('default', { month: 'short' }) : ''
+      }
     };
   }, [trendResponse]);
 
@@ -141,6 +149,30 @@ export default function HomePage() {
     };
   }, [serviceResponse]);
 
+  // Calculate Top 3 Accounts by Cost (Latest Month)
+  const topAccounts = useMemo(() => {
+    if (!accountResponse?.data || !Array.isArray(accountResponse.data) || !accountResponse.accounts) return [];
+
+    const rows = accountResponse.data;
+    // Sort months to get latest
+    const sortedRows = [...rows].sort((a, b) => {
+      return new Date(a.month + ' 1').getTime() - new Date(b.month + ' 1').getTime();
+    });
+
+    const latestMonthData = sortedRows[sortedRows.length - 1];
+    if (!latestMonthData) return [];
+
+    const accountCosts = accountResponse.accounts.map(accName => ({
+      name: accName,
+      cost: Number(latestMonthData[accName] || 0),
+      id: Math.floor(Math.random() * 9000000000) + 1000000000 // Mock ID for display as per design
+    }));
+
+    return accountCosts
+      .sort((a, b) => b.cost - a.cost)
+      .slice(0, 3);
+  }, [accountResponse]);
+
 
   if (loading || !user) {
     return (
@@ -157,7 +189,7 @@ export default function HomePage() {
       <div className="space-y-6">
         {/* Header Section */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Welcome, {user.name}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Welcome</h2>
           <p className="text-gray-500 mt-1">
             Here's an overview of cloud spending and latest cost trends.
           </p>
@@ -178,6 +210,23 @@ export default function HomePage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {kpiTrendPercentage > 0 ? '+' : ''}{kpiTrendPercentage.toFixed(1)}% from last month
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {trendDetails?.currentMonthName} vs {trendDetails?.prevMonthName}
+              </CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${trendDetails?.diff && trendDetails.diff >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                {trendDetails?.diff && trendDetails.diff >= 0 ? '+' : '-'}${Math.abs(trendDetails?.diff || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {trendDetails?.prevMonthName}: ${trendDetails?.prevCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </CardContent>
           </Card>
@@ -214,20 +263,52 @@ export default function HomePage() {
 
         </div>
 
+        {/* Top 3 Accounts Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {topAccounts.map((acc, index) => {
+            const bgColors = ['bg-pink-50', 'bg-yellow-50', 'bg-white'];
+            const textColors = ['text-pink-700', 'text-yellow-700', 'text-gray-900'];
+            const isLast = index === 2;
+
+            return (
+              <Card key={acc.name} className={`${bgColors[index] || 'bg-white'} border-none shadow-sm`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className={`text-sm font-medium ${isLast ? 'text-gray-500' : 'text-gray-600'}`}>
+                    {acc.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${textColors[index] || 'text-gray-900'}`}>
+                    ${acc.cost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <Database className="w-3 h-3" />
+                    <span className="truncate">{acc.id}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
         {/* Monthly AWS Cost Trend */}
         <div id="cost-trend">
           <MonthlyTrendChart />
         </div>
 
         <div id="cost-breakdown" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AccountBreakdownChart />
-          <AccountCostTable />
+          <div className={breakdownFilter === 'ALL' ? 'lg:col-span-2' : ''}>
+            <AccountBreakdownChart onFilterChange={setBreakdownFilter} />
+          </div>
+          <div className={breakdownFilter === 'ALL' ? 'lg:col-span-2' : ''}>
+            <AccountCostTable />
+          </div>
         </div>
 
-        {/* Service Cost Breakdown */}
-        <div id="service-comparison">
-          <ServiceCostBarChart />
+        <div id="account-trends" className="mt-8">
+          <AccountTrendTable />
         </div>
+
 
       </div>
     </DashboardLayout>

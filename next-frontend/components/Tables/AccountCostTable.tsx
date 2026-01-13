@@ -28,7 +28,7 @@ import { useChartData } from '@/lib/hooks/useChartData';
 import { API_ENDPOINTS } from '@/lib/constants';
 import { AccountBreakdownPoint, ApiResponse } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 
 export default function AccountCostTable() {
     //fetch data
@@ -41,29 +41,33 @@ export default function AccountCostTable() {
     const handleMonthChange = (value: string) => {
         setIsFiltering(true);
         setSelectedMonth(value);
-        setTimeout(() => setIsFiltering(false), 1000);
+        setTimeout(() => setIsFiltering(false), 500);
     };
 
     //process data
     const { months, tableData } = useMemo(() => {
         if (!apiResponse?.data) return { months: [], tableData: [] };
-        //get list of months from dropdown
-        const monthsList = apiResponse.data.map(item => item.month);
-        //get list of all accounts name
+
+        // Use a Set to ensure unique months and sort them chronologically
+        const headerMonths = [...new Set(apiResponse.data.map(item => item.month))].sort((a, b) => {
+            return new Date(a + ' 1').getTime() - new Date(b + ' 1').getTime();
+        });
+
         const accountsList = apiResponse.accounts || [];
-        //find the data row for the selected month
         const currentMonthData = apiResponse.data.find(d => d.month === selectedMonth);
 
         const rows = accountsList.map(account => ({
             accountName: account,
             cost: Number(currentMonthData?.[account] || 0)
-        })).sort((a, b) => b.cost - a.cost); // Sort specific to high cost first?
-        return { months: monthsList, tableData: rows };
+        })).sort((a, b) => b.cost - a.cost);
+
+        return { months: headerMonths, tableData: rows };
     }, [apiResponse, selectedMonth]);
-    // 4. Auto-select first month on load
+
+    // 4. Auto-select latest month on load
     useEffect(() => {
         if (months.length > 0 && !selectedMonth) {
-            setSelectedMonth(months[0]);
+            setSelectedMonth(months[months.length - 1]);
         }
     }, [months, selectedMonth]);
 
@@ -137,6 +141,7 @@ export default function AccountCostTable() {
                         {isFiltering ? (
                             <TableRow>
                                 <TableCell colSpan={2} className="h-24 text-center text-gray-500">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-400" />
                                     Updating data...
                                 </TableCell>
                             </TableRow>
@@ -167,4 +172,3 @@ export default function AccountCostTable() {
         </Card>
     );
 }
-

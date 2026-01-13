@@ -12,7 +12,7 @@ export interface User {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'viewer';
+    role: 'devops' | 'hod' | 'finance' | 'super_admin' | 'admin' | 'viewer' | string;
 }
 
 export interface ServiceRow {
@@ -44,3 +44,17 @@ export interface UploadResponse {
     error?: string;
 }
 
+export interface ServiceCostItem {
+    product_code: string;
+    product_name: string;
+    month_year: string;
+    total_cost: number;
+    usage_count: number;
+}
+
+export interface ServiceTrendItem {
+    month_year: string;
+    product_code: string;
+    product_name: string;
+    total_cost: number;
+}

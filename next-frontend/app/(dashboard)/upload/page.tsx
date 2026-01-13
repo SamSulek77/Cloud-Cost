@@ -18,8 +18,14 @@ export default function UploadPage() {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
-        if (!loadingUser && user && user.role !== 'admin') {
+        if (!loadingUser && user && !['devops', 'super_admin', 'admin'].includes(user.role)) {
             router.push('/home');
+        }
+    }, [user, loadingUser, router]);
+
+    useEffect(() => {
+        if (!loadingUser && !user) {
+            router.push('/login');
         }
     }, [user, loadingUser, router]);
 
