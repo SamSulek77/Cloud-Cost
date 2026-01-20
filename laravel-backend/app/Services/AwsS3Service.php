@@ -32,25 +32,27 @@ class AwsS3Service
     public function listCsvFiles(string $prefix = 'cost-reports/'): array
     {
         try {
-            $result = $this->s3Client->listObjectsV2([
+            $results = $this->s3Client->getPaginator('ListObjectsV2', [
                 'Bucket' => $this->bucket,
                 'Prefix' => $prefix,
             ]);
 
             $files = [];
-            
-            if (isset($result['Contents'])) {
-                foreach ($result['Contents'] as $object) {
-                    $key = $object['Key'];
-                    
-                    // Only include CSV files
-                    if (pathinfo($key, PATHINFO_EXTENSION) === 'csv') {
-                        $files[] = [
-                            'key' => $key,
-                            'size' => $object['Size'],
-                            'last_modified' => $object['LastModified'],
-                            'filename' => basename($key),
-                        ];
+
+            foreach ($results as $result) {
+                if (isset($result['Contents'])) {
+                    foreach ($result['Contents'] as $object) {
+                        $key = $object['Key'];
+                        
+                        // Only include CSV files (case-insensitive)
+                        if (strtolower(pathinfo($key, PATHINFO_EXTENSION)) === 'csv') {
+                            $files[] = [
+                                'key' => $key,
+                                'size' => $object['Size'],
+                                'last_modified' => $object['LastModified'],
+                                'filename' => basename($key),
+                            ];
+                        }
                     }
                 }
             }

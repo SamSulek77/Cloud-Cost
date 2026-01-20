@@ -13,9 +13,9 @@ class RoleMiddleware
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (! $request->user() || $request->user()->role !== $role) {
+        if (! $request->user() || ! in_array($request->user()->role, $roles)) {
             return response()->json(['message' => 'Access Denied: You do not have the required permissions.'], 403);
         }
 

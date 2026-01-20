@@ -31,7 +31,7 @@ class CsvParser
      */
     public function parse(string $content): array
     {
-        // Remove BOM if present
+        // Remove BOM (byte order mark) if present
         $content = str_replace("\xEF\xBB\xBF", '', $content);
         
         $delimiter = $this->detectDelimiter($content);
@@ -113,6 +113,16 @@ class CsvParser
                 'ProductName',
                 'lineItem/ProductName',
                 'product_name',
+            ],
+            'usage_type' => [
+                'UsageType',
+                'lineItem/UsageType',
+                'usage_type',
+            ],
+            'usage_quantity' => [
+                'UsageQuantity',
+                'lineItem/UsageAmount',
+                'usage_quantity',
             ],
         ];
 
@@ -219,6 +229,16 @@ class CsvParser
             $productName = isset($columnMap['product_name']) && isset($row[$columnMap['product_name']]) 
                 ? trim($row[$columnMap['product_name']]) 
                 : null;
+            
+            // Extract UsageType and UsageQuantity
+            $usageType = isset($columnMap['usage_type']) && isset($row[$columnMap['usage_type']])
+                ? trim($row[$columnMap['usage_type']])
+                : null;
+
+            $usageQuantityRaw = isset($columnMap['usage_quantity']) && isset($row[$columnMap['usage_quantity']])
+                ? trim($row[$columnMap['usage_quantity']])
+                : '0';
+            $usageQuantity = floatval(str_replace(',', '', $usageQuantityRaw));
 
             // Validate required data
             if (!$account) {
@@ -246,6 +266,8 @@ class CsvParser
                 'cost' => $cost,
                 'product_code' => $productCode,
                 'product_name' => $productName,
+                'usage_type' => $usageType,
+                'usage_quantity' => $usageQuantity,
             ];
             
             $processedLines++;

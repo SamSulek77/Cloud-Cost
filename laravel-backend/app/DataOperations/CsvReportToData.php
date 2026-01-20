@@ -34,8 +34,10 @@ class CsvReportToData
                 // Store everything in one record including product info
                 $processedData[] = [
                     'account_name' => $record['account'],
-                    'product_code' => $record['product_code'] ?? null,
+                'product_code' => $record['product_code'] ?? null,
                     'product_name' => $record['product_name'] ?? null,
+                    'usage_type' => $record['usage_type'] ?? null,
+                    'usage_quantity' => $record['usage_quantity'] ?? 0,
                     'usage_end_date' => $dateInfo['formatted'],
                     'month_year' => $dateInfo['month_year'],
                     'cost' => $record['cost'],
@@ -151,6 +153,8 @@ class CsvReportToData
                     'account_name' => $record['account_name'],
                     'product_code' => $record['product_code'] ?? null,
                     'product_name' => $record['product_name'] ?? null,
+                    'usage_type' => $record['usage_type'] ?? null,
+                    'usage_quantity' => $record['usage_quantity'] ?? null,
                     'usage_end_date' => $record['usage_end_date'],
                     'month_year' => $record['month_year'],
                     'cost' => $record['cost'],

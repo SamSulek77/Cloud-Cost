@@ -266,6 +266,62 @@ class CostByService extends Controller
     }
 
     /**
+     * Get top services per month for a specific account
+     */
+    public function serviceByMonth(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) return response()->json(['error' => 'Unauthenticated'], 401);
+
+            $accountName = $request->input('account_name');
+            if (!$accountName) return response()->json(['error' => 'Account name required'], 400);
+
+            // Fetch all service costs for the account grouped by month and service
+            $data = DB::table('cost_records')
+                ->where('account_name', $accountName)
+                ->whereNotNull('product_code')
+                ->select(
+                    'month_year',
+                    'product_code',
+                    'product_name',
+                    DB::raw('SUM(cost) as total_cost')
+                )
+                ->groupBy('month_year', 'product_code', 'product_name')
+                ->orderBy('month_year')
+                ->orderBy('total_cost', 'desc')
+                ->get();
+
+            // Group by month and keep top 5
+            $grouped = [];
+            $months = $data->pluck('month_year')->unique();
+
+            foreach ($months as $month) {
+                $monthServices = $data->where('month_year', $month)->values();
+                $top5 = $monthServices->take(5);
+                
+                $monthData = [
+                    'month' => $month,
+                    'services' => $top5,
+                    'other_cost' => $monthServices->slice(5)->sum('total_cost'),
+                    'total_cost' => $monthServices->sum('total_cost')
+                ];
+                $grouped[] = $monthData;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $grouped,
+                'all_services' => $data->pluck('product_name', 'product_code')->unique()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('serviceByMonth: Error', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Helper method to group service data by different dimensions
      */
     private function groupServiceData($rows)
