@@ -1,0 +1,65 @@
+@startuml
+title Manual Cloud Sync Focus
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "User" as User
+participant "Dashboard" as Frontend
+participant "Backend API" as Backend
+participant "AWS S3" as AWS
+database "Database" as DB
+
+box "Cost Dashboard System" #F9F9F9
+    participant Frontend
+    participant Backend
+end box
+
+User -> Frontend : Click "Cloud Sync"
+activate Frontend
+
+Frontend -> Backend : Trigger Sync
+activate Backend
+
+group Sync Logic
+    Backend -> AWS : List Objects
+    activate AWS
+    AWS --> Backend : File List
+    deactivate AWS
+    
+    loop For Each New File
+        Backend -> AWS : Download CSV
+        activate AWS
+        AWS --> Backend : CSV Content
+        deactivate AWS
+        
+        Backend -> Backend : Parse Data
+        
+        Backend -> DB : Batch Insert Records
+        activate DB
+        DB --> Backend : Success
+        deactivate DB
+    end
+end
+
+Backend --> Frontend : Sync Success
+deactivate Backend
+
+Frontend -> Frontend : Auto-Refresh Data (Refetch)
+
+group Auto-Refresh Data Fetching
+    Frontend -> Backend : Request New Data
+    activate Backend
+    Backend -> DB : Query Latest Costs
+    activate DB
+    DB --> Backend : Updated Data
+    deactivate DB
+    Backend --> Frontend : JSON Response
+    deactivate Backend
+end
+
+Frontend --> User : Display Updated Charts
+deactivate Frontend
+
+@enduml

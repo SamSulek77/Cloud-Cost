@@ -1,0 +1,46 @@
+@startuml
+title S3 Webhook Automatic Import Flow
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "External User" as ExtUser
+participant "AWS Cloud\n(S3 & SNS)" as AWS
+participant "Backend System" as Backend
+database "Database" as DB
+
+box "Local Environment" #F9F9F9
+    participant Backend
+    participant DB
+end box
+
+frame "Automated Ingestion Process" {
+    ExtUser -> AWS : Upload CSV to S3 Bucket
+    activate AWS
+    
+    AWS -> AWS : Detect ObjectCreated Event
+    AWS -> Backend : Send Webhook Notification (via SNS/ngrok)
+    activate Backend
+    
+    Backend -> AWS : Download Triggered File
+    AWS --> Backend : Return File Content
+    
+    Backend -> Backend : Parse & Validate Data
+    
+    Backend -> DB : Batch Insert Cost Records
+    activate DB
+    DB --> Backend : Success
+    deactivate DB
+    
+    Backend --> AWS : Acknowledge Event (200 OK)
+    deactivate Backend
+    deactivate AWS
+}
+
+note right of DB
+  Data available on Dashboard
+  immediately after upload
+end note
+
+@enduml

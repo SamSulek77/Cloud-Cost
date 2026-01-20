@@ -24,7 +24,10 @@ export function useChartData<T>(endpoint: string): UseChartDataResult<T> {
                 throw new Error('No authentication token found. Please log in.');
             }
 
-            const response = await axios.get(endpoint);
+            const response = await axios.get(endpoint, {
+                params: { _t: new Date().getTime() },
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
 
             setData(response.data);
         } catch (err: any) {
@@ -42,6 +45,17 @@ export function useChartData<T>(endpoint: string): UseChartDataResult<T> {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Listen for global refresh event
+    useEffect(() => {
+        const handleRefresh = () => {
+            console.log(`Global refresh triggered for endpoint: ${endpoint}`);
+            fetchData();
+        };
+
+        window.addEventListener('cost-data-updated', handleRefresh);
+        return () => window.removeEventListener('cost-data-updated', handleRefresh);
+    }, [fetchData, endpoint]);
 
     return { data, loading, error, refetch: fetchData };
 }

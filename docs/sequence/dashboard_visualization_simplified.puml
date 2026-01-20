@@ -1,0 +1,57 @@
+@startuml
+title Dashboard Visualization (Parallel Data Loading)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "User" as User
+participant "Dashboard" as Frontend
+participant "Backend System" as Backend
+database "Database" as DB
+
+box "Cost Dashboard System" #F9F9F9
+    participant Frontend
+    participant Backend
+end box
+
+frame "Dashboard Data Loading Process" {
+    User -> Frontend : Load Dashboard (/home)
+    activate Frontend
+    
+    par Parallel Data Fetching
+        Frontend -> Backend : Request Monthly Trends
+        activate Backend
+        Backend -> DB : Query Aggregated Monthly Costs
+        activate DB
+        DB --> Backend : Trend Data
+        deactivate DB
+        Backend --> Frontend : JSON Response
+        deactivate Backend
+    else
+        Frontend -> Backend : Request Account Breakdown
+        activate Backend
+        Backend -> DB : Query Costs by Account
+        activate DB
+        DB --> Backend : Breakdown Data
+        deactivate DB
+        Backend --> Frontend : JSON Response
+        deactivate Backend
+    else
+        Frontend -> Backend : Request Services Overview
+        activate Backend
+        Backend -> DB : Query Top Services
+        activate DB
+        DB --> Backend : Service Data
+        deactivate DB
+        Backend --> Frontend : JSON Response
+        deactivate Backend
+    end
+    
+    Frontend -> Frontend : Render Interactive Charts
+    
+    Frontend --> User : Display Complete Dashboard
+    deactivate Frontend
+}
+
+@enduml

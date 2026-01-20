@@ -8,6 +8,7 @@ import { ServiceCostItem, ApiResponse } from '@/types';
 import { Filter, BarChart2, LineChart as LineChartIcon } from "lucide-react"
 import { Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from "recharts"
 import { Loader2 } from 'lucide-react';
+import ServiceComparisonChart from '@/components/Charts/ServiceComparisonChart';
 import ServiceCostBarChart from '@/components/Charts/ServiceCostBarChart';
 import CostInvestigationPanel from '@/components/Overlays/CostInvestigationPanel';
 import DashboardLayout from '@/components/Layoutpage/SideBarLayout';
@@ -38,6 +39,8 @@ export default function ServiceAnalysisPage() {
     const [selectedService, setSelectedService] = useState<string>('');
     const [selectedServiceData, setSelectedServiceData] = useState<ServiceCostItem | null>(null);
 
+    const [comparisonView, setComparisonView] = useState<'grouped' | 'legacy'>('grouped');
+
     const [monthlyTrend, setMonthlyTrend] = useState<any[]>([]);
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
@@ -51,6 +54,8 @@ export default function ServiceAnalysisPage() {
         monthB: string;
         accountName?: string | null;
     } | null>(null);
+
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Helper to find previous month
     const getPreviousMonth = (currentMonth: string, allData: any[]) => {
@@ -82,11 +87,26 @@ export default function ServiceAnalysisPage() {
         }
     };
 
+    // Listen for Cloud Sync event to auto-refresh data
+    useEffect(() => {
+        const handleDataUpdate = () => {
+            setRefreshTrigger(prev => prev + 1);
+        };
+
+        window.addEventListener('cost-data-updated', handleDataUpdate);
+        return () => {
+            window.removeEventListener('cost-data-updated', handleDataUpdate);
+        };
+    }, []);
+
     // 1. Fetch Accounts on Mount
     useEffect(() => {
         const fetchAccounts = async () => {
             try {
-                const response = await axios.get<ApiResponse<any>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN);
+                const response = await axios.get<ApiResponse<any>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN, {
+                    params: { _t: new Date().getTime() },
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
                 if (response.data.success && response.data.accounts) {
                     setAccounts(response.data.accounts);
                     if (response.data.accounts.length > 0) {
@@ -99,7 +119,7 @@ export default function ServiceAnalysisPage() {
         };
 
         fetchAccounts();
-    }, []);
+    }, [refreshTrigger]);
 
     // 2. Fetch Services when Account Changes
     useEffect(() => {
@@ -109,7 +129,10 @@ export default function ServiceAnalysisPage() {
             setLoading(true);
             try {
                 const response = await axios.get<ApiResponse<ServiceCostItem[]>>(
-                    `${API_ENDPOINTS.SERVICE_DETAILS}/${encodeURIComponent(selectedAccount)}`
+                    `${API_ENDPOINTS.SERVICE_DETAILS}/${encodeURIComponent(selectedAccount)}`, {
+                    params: { _t: new Date().getTime() },
+                    headers: { 'Cache-Control': 'no-cache' }
+                }
                 );
 
                 if (response.data.success) {
@@ -137,7 +160,7 @@ export default function ServiceAnalysisPage() {
         };
 
         fetchServices();
-    }, [selectedAccount]);
+    }, [selectedAccount, refreshTrigger]);
 
     // 3. Fetch Trend Data when Service Changes
     useEffect(() => {
@@ -149,8 +172,10 @@ export default function ServiceAnalysisPage() {
                 const response = await axios.get<ApiResponse<any[]>>(API_ENDPOINTS.SERVICE_TRENDS, {
                     params: {
                         account_name: selectedAccount,
-                        product_code: selectedService
-                    }
+                        product_code: selectedService,
+                        _t: new Date().getTime()
+                    },
+                    headers: { 'Cache-Control': 'no-cache' }
                 });
 
                 if (response.data.success) {
@@ -174,17 +199,10 @@ export default function ServiceAnalysisPage() {
         };
 
         fetchTrend();
-    }, [selectedAccount, selectedService, services]);
-
+    }, [selectedAccount, selectedService, services, refreshTrigger]);
 
     if (authLoading) {
-        return (
-            <DashboardLayout user={user}>
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                </div>
-            </DashboardLayout>
-        );
+        // ...
     }
 
     return (
@@ -194,13 +212,30 @@ export default function ServiceAnalysisPage() {
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Service Analysis</h2>
                     <p className="text-gray-500 mt-1">
-                        Analyze cost distribution for specific AWS services per account.
+                        Analyze cost distribution and cost investigation for specific AWS services per account.
                     </p>
                 </div>
 
-                {/* Service Cost Breakdown */}
-                <div id="service-comparison">
-                    <ServiceCostBarChart />
+                {/* Service Cost Breakdown Section with Toggle */}
+                <div id="service-comparison-section" className="space-y-2">
+                    <div className="flex justify-end">
+                        <Tabs value={comparisonView} onValueChange={(v) => setComparisonView(v as 'grouped' | 'legacy')} className="w-[400px]">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="grouped">Monthly Trend</TabsTrigger>
+                                <TabsTrigger value="legacy">Ranked Overview</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+
+                    {comparisonView === 'grouped' ? (
+                        <div id="service-comparison">
+                            <ServiceComparisonChart />
+                        </div>
+                    ) : (
+                        <div id="service-breakdown-legacy">
+                            <ServiceCostBarChart />
+                        </div>
+                    )}
                 </div>
 
 
@@ -216,7 +251,7 @@ export default function ServiceAnalysisPage() {
                             <CardHeader>
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-1">
-                                        <CardTitle className="text-xl font-semibold">Service Cost Trend</CardTitle>
+                                        <CardTitle className="text-xl font-semibold">Service Costs Trends</CardTitle>
                                         <CardDescription className="text-sm text-gray-500">
                                             Monthly cost progression for {selectedServiceData?.product_name}, click to the month to view cost investigation.
                                         </CardDescription>

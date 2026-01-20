@@ -1,0 +1,85 @@
+@startuml
+title High Level Architecture - AWS Cost Dashboard
+
+skinparam componentStyle rectangle
+skinparam roundCorner 10
+skinparam shadowing true
+skinparam linetype ortho
+
+' Increase spacing to make arrows longer
+skinparam nodesep 80
+skinparam ranksep 80
+' Add padding to labels to avoid touching lines
+skinparam DefaultTextAlignment center
+
+left to right direction
+
+' 1. User
+actor "User" as User
+
+' 2. Frontend
+rectangle "Frontend" {
+    component "Next.js UI" as UI #LightCyan
+}
+
+' 3. Backend
+rectangle "Backend API" {
+    
+    component "Auth Manager" as Auth #SkyBlue
+    component "Cost Controller" as Controller #SkyBlue
+    component "CSV Parser" as Parser #Plum
+    component "Ingestion Pipeline" as Pipeline #Plum
+    component "Notification" as Notify #Bisque
+    
+    ' Spacer to increase block size
+    Auth -[hidden]- Controller
+    Parser -[hidden]- Pipeline
+}
+
+' 4. AWS Services (Requested Position)
+rectangle "AWS Services" {
+    storage "AWS S3" as S3 #43A047
+    queue "AWS SNS" as SNS #E91E63
+}
+
+' 5. Database (Requested Position)
+rectangle "Database" {
+    database "PostgreSQL" as DB #LightGreen
+}
+
+' --- Layout Enforcement (Invisible High-Priority Links) ---
+' This forces the blocks to appear in the specific order:
+' User -> Frontend -> Backend -> AWS -> Database
+User -[hidden]-> UI
+UI -[hidden]-> Controller
+Controller -[hidden]-> S3
+S3 -[hidden]-> DB
+
+' --- Relationships ---
+
+' User Access
+User --> UI : " (1) Access "
+
+' Frontend -> Backend
+UI --> Auth : " (2) Login "
+UI --> Controller : " (4) Upload "
+
+' Backend Internal
+Controller --> Parser : " (5) Stream "
+Parser --> Pipeline : " (6) Parse "
+
+' Backend -> Database (Auth & Data)
+Auth --> DB : " (3) Verify "
+Pipeline --> DB : " (7) Insert "
+Controller --> DB : " (9) Query "
+
+' Backend -> AWS
+S3 --> SNS : " (10) Event "
+SNS --> Controller : " (11) Webhook "
+Controller --> S3 : " (12) Download "
+
+' Alerts
+Pipeline --> Notify : " (13) Success "
+Notify --> User : " (14) Email "
+
+@enduml

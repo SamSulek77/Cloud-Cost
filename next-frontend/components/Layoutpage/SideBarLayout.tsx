@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Home, Settings, Upload, ChevronLeft, ChevronRight, TrendingUp, PieChart, BarChart3, ChevronDown, Table } from 'lucide-react';
+import { LogOut, Home, Settings, Upload, ChevronLeft, ChevronRight, TrendingUp, PieChart, BarChart3, ChevronDown, Table, RefreshCw } from 'lucide-react';
 import { removeCookie } from '@/lib/cookies';
 import { cn } from '@/lib/utils';
+import axios from '@/lib/axios';
+import { API_ENDPOINTS } from '@/lib/constants';
 
 import { User } from '@/types';
 
@@ -21,6 +23,8 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
   const [isHomeSubMenuOpen, setIsHomeSubMenuOpen] = useState(pathname === '/home');
   const [isAnalysisSubMenuOpen, setIsAnalysisSubMenuOpen] = useState(pathname === '/analysis');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // Load persisted state on mount home and analysis
   useEffect(() => {
@@ -50,6 +54,35 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     router.push('/login');
   };
 
+  const handleCloudSync = async () => {
+    if (isSyncing) return;
+
+    // Simple confirmation if needed, or just run it. Using simple state feedback.
+    if (!confirm('Run manual S3 Cloud Sync? This will import any new files found in your bucket.')) return;
+
+    setIsSyncing(true);
+    setSyncStatus('idle');
+
+    try {
+      const response = await axios.post(API_ENDPOINTS.S3_SYNC);
+      setSyncStatus('success');
+
+      alert(response.data.message || 'Sync completed successfully.');
+
+      // Dispatch event AFTER user acknowledges the alert
+      window.dispatchEvent(new Event('cost-data-updated'));
+
+    } catch (error: any) {
+      console.error('Cloud Sync failed:', error);
+      setSyncStatus('error');
+      alert('Cloud Sync failed. Please check the logs.');
+    } finally {
+      setIsSyncing(false);
+      // Reset status after 3 seconds
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }
+  };
+
   const canUpload = user && ['devops', 'super_admin', 'admin'].includes(user.role || '');
 
   return (
@@ -61,7 +94,6 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           isCollapsed ? "w-20" : "w-64"
         )}
       >
-        {/* ... (Toggle Button and Logo remain same - skipped for brevity in replacement if not touched) */}
         {/* Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -219,31 +251,38 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                   {!isCollapsed && <span>Upload</span>}
                 </Link>
 
-
+                <button
+                  onClick={handleCloudSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full",
+                    "text-gray-600 hover:bg-gray-100",
+                    isSyncing && "opacity-70 cursor-wait",
+                    isCollapsed && "justify-center px-0"
+                  )}
+                  title={isCollapsed ? "Cloud Sync" : undefined}
+                >
+                  <RefreshCw className={cn(
+                    "w-5 h-5 shrink-0",
+                    isSyncing && "animate-spin",
+                    syncStatus === 'success' && "text-green-500",
+                    syncStatus === 'error' && "text-red-500"
+                  )} />
+                  {!isCollapsed && (
+                    <span className={cn(
+                      syncStatus === 'success' && "text-green-600",
+                      syncStatus === 'error' && "text-red-600"
+                    )}>
+                      {isSyncing ? "Syncing..." : syncStatus === 'success' ? "Synced!" : "Cloud Sync"}
+                    </span>
+                  )}
+                </button>
               </>
             )}
           </div>
         </nav>
 
-        {/* Settings */}
-        {canUpload && (
-          <div className="px-4 pb-2">
-            <Link
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname === '/settings'
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-600 hover:bg-gray-100",
-                isCollapsed && "justify-center px-0"
-              )}
-              title={isCollapsed ? "Settings" : undefined}
-            >
-              <Settings className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span>Settings</span>}
-            </Link>
-          </div>
-        )}
+
 
         {/* User Info & Logout */}
         <div className="border-t border-gray-200">

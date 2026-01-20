@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useChartData } from '@/lib/hooks/useChartData';
 import { API_ENDPOINTS } from '@/lib/constants';
@@ -19,13 +19,28 @@ export default function HomePage() {
   const [breakdownFilter, setBreakdownFilter] = useState<string>('Q1');
 
   // Fetch Monthly Trend Data for KPI
-  const { data: trendResponse } = useChartData<ApiResponse<ChartPoint[]>>(API_ENDPOINTS.MONTHLY_TREND);
+  const { data: trendResponse, refetch: refetchTrend } = useChartData<ApiResponse<ChartPoint[]>>(API_ENDPOINTS.MONTHLY_TREND);
 
   // Fetch Account Breakdown Data for KPI
-  const { data: accountResponse } = useChartData<ApiResponse<any[]>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN);
+  const { data: accountResponse, refetch: refetchAccount } = useChartData<ApiResponse<any[]>>(API_ENDPOINTS.ACCOUNT_BREAKDOWN);
 
   // Fetch Service Cost Data for KPI
-  const { data: serviceResponse } = useChartData<ApiResponse<any[]>>(API_ENDPOINTS.SERVICE_COSTS);
+  const { data: serviceResponse, refetch: refetchService } = useChartData<ApiResponse<any[]>>(API_ENDPOINTS.SERVICE_COSTS);
+
+  // Listen for Cloud Sync event to auto-refresh data
+  useEffect(() => {
+    const handleDataUpdate = () => {
+      console.log("Cost data updated event received. Refetching...");
+      refetchTrend();
+      refetchAccount();
+      refetchService();
+    };
+
+    window.addEventListener('cost-data-updated', handleDataUpdate);
+    return () => {
+      window.removeEventListener('cost-data-updated', handleDataUpdate);
+    };
+  }, [refetchTrend, refetchAccount, refetchService]);
 
   // Calculate Total Cost KPI
   const { currentTotalCost, kpiTrendPercentage, trendDetails } = useMemo(() => {
@@ -174,6 +189,8 @@ export default function HomePage() {
   }, [accountResponse]);
 
 
+  // Manual listener removed - handled by useChartData hook globally
+
   if (loading || !user) {
     return (
       <DashboardLayout user={user}>
@@ -273,17 +290,16 @@ export default function HomePage() {
             return (
               <Card key={acc.name} className={`${bgColors[index] || 'bg-white'} border-none shadow-sm`}>
                 <CardHeader className="pb-2">
-                  <CardTitle className={`text-sm font-medium ${isLast ? 'text-gray-500' : 'text-gray-600'}`}>
+                  <CardTitle className={`text-sm font-bold ${isLast ? 'text-gray-500' : 'text-gray-600'}`}>
                     {acc.name}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <h1 className="text-sm font-bold">Cost:</h1>
+                  </div>
                   <div className={`text-2xl font-bold ${textColors[index] || 'text-gray-900'}`}>
                     ${acc.cost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <Database className="w-3 h-3" />
-                    <span className="truncate">{acc.id}</span>
                   </div>
                 </CardContent>
               </Card>

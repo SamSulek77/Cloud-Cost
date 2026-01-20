@@ -126,7 +126,7 @@ export default function ServiceCostBarChart() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Service Cost Comparison</CardTitle>
+              <CardTitle>Service Costs Comparison</CardTitle>
               <CardDescription>
                 {showAll ? 'Comparing all services by cost' : 'Top 5 highest cost services'}
               </CardDescription>
