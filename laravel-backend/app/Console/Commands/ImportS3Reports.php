@@ -93,6 +93,56 @@ class ImportS3Reports extends Command
                     );
 
                     $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+                    $uploadMonth = $dataResult['upload_month'];
+
+                    // 🛑 1. STRICT FOLDER COMPLIANCE CHECK
+                    // We enforce that the file MUST reside in cost-reports/YYYY/MM/
+                    // And the content's month MUST match that YYYY/MM.
+                    
+                    // 🛑 1. STRICT FOLDER COMPLIANCE CHECK
+                    // We enforce that the file MUST reside in a folder structure like .../YYYY/MM/...
+                    
+                    if ($uploadMonth !== 'Unknown') {
+                         Log::info("DEBUG CHECK: Processing contents of {$filename} which is for {$uploadMonth}");
+
+                         // Use Regex to find "YYYY/MM" or "YYYY/M" pattern in the full key
+                         // This is safer than array indexing if prefixes change (e.g. cost-reports/2025/10 vs 2025/10)
+                         if (preg_match('/(\d{4})\/(\d{1,2})\//', $s3Key, $matches)) {
+                             $folderYear = (int)$matches[1];
+                             $folderMonth = (int)$matches[2];
+                             
+                             try {
+                                 // "October 2025" -> 2025-10-01
+                                 $contentDate = \Carbon\Carbon::createFromFormat('F Y', $uploadMonth);
+                                 
+                                 if ($contentDate->year !== $folderYear || $contentDate->month !== $folderMonth) {
+                                     $this->error("Skipping mismatch: Content is {$uploadMonth} but file is in folder {$folderYear}/{$folderMonth}");
+                                     Log::warning("Scheduler skipping mismatch: Content {$uploadMonth} != Folder {$folderYear}/{$folderMonth} (File: {$filename})");
+                                     continue; // Skip this file entirely
+                                 } else {
+                                     Log::info("DEBUG: Folder match confirmed. {$folderYear}/{$folderMonth} matches {$uploadMonth}");
+                                 }
+                             } catch (\Exception $e) {
+                                 Log::warning("Date parsing failed for folder check: " . $e->getMessage());
+                             }
+                         } else {
+                             Log::warning("Could not detect Year/Month folder structure in key: {$s3Key}. Skipping strict folder check.");
+                         }
+                    }
+
+                    // 🛑 2. DUPLICATE CONTENT CHECK
+                    // Even if folder matches, does this month already exist in DB?
+                    $existsCount = CostUpload::where('month_year', trim($uploadMonth))->count();
+                    Log::info("DEBUG DUPLICATE CHECK: Checking DB for month '{$uploadMonth}'. Found {$existsCount} existing records.");
+
+                    if ($uploadMonth !== 'Unknown' && $existsCount > 0) {
+                        $this->error("Skipping duplicate: Month {$uploadMonth} already exists in database.");
+                        Log::warning("Scheduler skipping duplicate month: {$uploadMonth} (File: {$filename})");
+                        continue;
+                    }
+
+                    Log::info("Proceeding to save new report for {$uploadMonth}");
+
                     $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
 
                     // 5. Save to Database (User ID is NULL for automated system imports)

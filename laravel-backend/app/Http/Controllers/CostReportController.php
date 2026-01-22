@@ -8,6 +8,7 @@ use App\CsvOperations\CsvParser;
 use App\CsvOperations\DateParser;
 use App\DataOperations\CsvReportToData;
 use Illuminate\Support\Facades\Storage;
+use App\Models\CostUpload;
 
 class CostReportController extends Controller
 {
@@ -81,6 +82,18 @@ class CostReportController extends Controller
 
             // Process and aggregate data
             $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+
+            // 🛑 PREVENT DUPLICATE UPLOADS
+            // Check if this month already exists in the database
+            $uploadMonth = $dataResult['upload_month'];
+            
+            if ($uploadMonth !== 'Unknown' && \App\Models\CostUpload::where('month_year', $uploadMonth)->exists()) {
+                Log::warning("Duplicate upload attempt blocked for month: {$uploadMonth}");
+                return response()->json([
+                    'error' => "This cost report for {$uploadMonth} is already uploaded."
+                ], 422);
+            }
+
             $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
 
             // Save to database
@@ -154,6 +167,17 @@ class CostReportController extends Controller
             );
 
             $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+
+            // 🛑 PREVENT DUPLICATE UPLOADS (S3)
+            $uploadMonth = $dataResult['upload_month'];
+            
+            if ($uploadMonth !== 'Unknown' && \App\Models\CostUpload::where('month_year', $uploadMonth)->exists()) {
+                Log::warning("Skipping S3 import: Month {$uploadMonth} already exists.");
+                return response()->json([
+                    'error' => "Skipped: Cost report for {$uploadMonth} is already uploaded."
+                ], 422);
+            }
+
             $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
 
             // 3️⃣ Save to DB (same as upload)
@@ -323,4 +347,10 @@ class CostReportController extends Controller
         ], 500);
     }
 }
+
+    /**
+     * DEBUG: Cleanup duplicate uploads
+     */
+
+
 }

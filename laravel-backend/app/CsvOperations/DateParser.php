@@ -16,9 +16,6 @@ class DateParser
         'Y-m-d H:i:s',     // 2025-05-31 23:59:00
     ];
 
-    /**
-     * Parse a date string into Carbon object
-     */
     public function parse(string $dateString): Carbon
     {
         // Try each format

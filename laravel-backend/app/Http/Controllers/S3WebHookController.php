@@ -118,7 +118,44 @@ class S3WebhookController extends Controller
             );
 
             // Process and aggregate data
+            // Process and aggregate data
             $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+            $uploadMonth = $dataResult['upload_month'];
+
+            // 🛑 1. STRICT FOLDER COMPLIANCE CHECK (Match S3 Key Structure)
+            if ($uploadMonth !== 'Unknown') {
+                 Log::info("Webhook Check: Processing contents of {$s3Key} which declares month {$uploadMonth}");
+
+                 if (preg_match('/(\d{4})\/(\d{1,2})\//', $s3Key, $matches)) {
+                     $folderYear = (int)$matches[1];
+                     $folderMonth = (int)$matches[2];
+                     
+                     try {
+                         $contentDate = \Carbon\Carbon::createFromFormat('F Y', $uploadMonth);
+                         
+                         if ($contentDate->year !== $folderYear || $contentDate->month !== $folderMonth) {
+                             Log::warning("Skipping webhook mismatch: Content {$uploadMonth} != Folder {$folderYear}/{$folderMonth} (Key: {$s3Key})");
+                             return; // Stop processing
+                         } else {
+                             Log::info("Webhook Check: Folder match confirmed. {$folderYear}/{$folderMonth} matches {$uploadMonth}");
+                         }
+                     } catch (\Exception $e) {
+                         Log::warning("Webhook date parsing failed: " . $e->getMessage());
+                     }
+                 } else {
+                     Log::warning("Webhook could not detect Year/Month folder structure in key: {$s3Key}. Skipping strict folder check.");
+                 }
+            }
+
+            // 🛑 2. DUPLICATE CONTENT CHECK
+            $existsCount = \App\Models\CostUpload::where('month_year', trim($uploadMonth))->count();
+            Log::info("Webhook Check: DB check for '{$uploadMonth}' found {$existsCount} records.");
+
+            if ($uploadMonth !== 'Unknown' && $existsCount > 0) {
+                Log::warning("Skipping webhook duplicate: Month {$uploadMonth} already exists in database.");
+                return; // Stop processing
+            }
+
             $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
 
             // Get default user (or you can have a system user)

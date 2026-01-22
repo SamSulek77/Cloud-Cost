@@ -51,18 +51,6 @@ Route::middleware(['auth:sanctum', 'role:devops,super_admin,admin'])
 
 // NEW: S3 Import Routes
 Route::middleware(['auth:sanctum', 'role:devops,super_admin,admin'])->group(function () {
-    // List files in S3
-    Route::get('/aws/s3/cost-reports/list', [S3CostReportController::class, 'listS3Files']);
-    
-    // Import specific file from S3
-    Route::post('/aws/s3/cost-reports/import', [S3CostReportController::class, 'importFromS3']);
-    
-    // Import latest file from S3
-    Route::post('/aws/s3/cost-reports/import-latest', [S3CostReportController::class, 'importLatest']);
-    
-    // Import all files from a specific month
-    Route::post('/aws/s3/cost-reports/import-month', [S3CostReportController::class, 'importMonth']);
-
     // S3 Manual Sync Trigger
     Route::post('/aws/s3/sync', [App\Http\Controllers\S3SyncController::class, 'sync']);
 });
