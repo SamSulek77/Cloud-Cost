@@ -1,0 +1,46 @@
+@startuml
+title Detailed Cost Investigation
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "User" as User
+participant "Dashboard" as Frontend
+participant "Backend System" as Backend
+database "Database" as DB
+
+box "Cost Dashboard System" #F9F9F9
+    participant Frontend
+    participant Backend
+end box
+
+frame "Cost Anomaly Investigation" {
+    User -> Frontend : Click Trend Chart (Select Month)
+    activate Frontend
+    
+    Frontend -> Backend : Request Cost Investigation\n(Current vs Previous Month)
+    activate Backend
+    
+    Backend -> DB : Query Usage Details (Month A)
+    activate DB
+    DB --> Backend : Usage Data A
+    deactivate DB
+    
+    Backend -> DB : Query Usage Details (Month B)
+    activate DB
+    DB --> Backend : Usage Data B
+    deactivate DB
+    
+    Backend -> Backend : Calculate Variance & % Change
+    
+    Backend --> Frontend : Comparison Result (Sorted by Cost)
+    deactivate Backend
+    
+    Frontend -> Frontend : Render Investigation Panel
+    
+    Frontend --> User : Display Granular Cost Breakdown
+    deactivate Frontend
+}
+
+@enduml

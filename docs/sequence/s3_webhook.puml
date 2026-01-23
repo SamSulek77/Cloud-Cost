@@ -1,0 +1,52 @@
+@startuml
+title AWS Cost Dashboard – S3 Webhook Automatic Import Flow
+
+actor "External User" as ExtUser
+participant "AWS S3\nBucket" as S3
+participant "AWS SNS\nTopic" as SNS
+participant "ngrok\nTunnel" as ngrok
+participant "API Route" as API
+participant "S3WebhookController" as WebhookController
+participant "AwsS3Service" as S3Service
+participant "CsvParser" as Parser
+participant "CsvReportToData" as DataOps
+database PostgreSQL as DB
+
+ExtUser -> S3 : Upload CSV to\ns3://fyp-acd/cost-reports/2025/12/
+S3 -> S3 : Trigger ObjectCreated event
+S3 -> SNS : Publish event notification
+
+SNS -> ngrok : POST webhook\n(HTTPS notification)
+ngrok -> API : Forward to\nPOST /api/aws/s3/webhook
+
+API -> WebhookController : handleS3Event(Request)
+WebhookController -> WebhookController : Parse SNS message\nExtract S3 object key
+
+WebhookController -> S3Service : downloadFile(s3Key)
+S3Service -> S3 : GET object
+S3 --> S3Service : file content
+S3Service --> WebhookController : CSV content
+
+WebhookController -> Parser : parse(content)
+Parser --> WebhookController : parsed data
+
+WebhookController -> Parser : processRows(data)
+Parser --> WebhookController : raw cost data
+
+WebhookController -> DataOps : processData(rawData)
+DataOps --> WebhookController : processed data
+
+WebhookController -> DataOps : saveToDatabase(systemUserId, data)
+DataOps -> DB : INSERT INTO cost_uploads
+DataOps -> DB : BATCH INSERT INTO cost_records
+DB --> DataOps : success
+DataOps --> WebhookController : upload record
+
+WebhookController --> API : 200 OK response
+API --> SNS : HTTP 200 OK
+
+note right of DB
+  File automatically imported
+  without user intervention!
+end note
+@enduml

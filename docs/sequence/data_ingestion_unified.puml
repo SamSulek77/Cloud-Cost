@@ -1,0 +1,37 @@
+@startuml
+title Data Ingestion Process (Unified Flow)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "User / System Trigger\n(S3 Event)" as Trigger
+participant "Data Parser" as Parser
+participant "Backend API" as API
+database "Database\n(PostgreSQL)" as DB
+
+box "Ingestion Service" #F9F9F9
+    participant Parser
+    participant API
+end box
+
+Trigger -> Parser : Incoming CSV/JSON Stream
+activate Parser
+
+Parser -> Parser : Read Input Stream
+Parser --> API : Parsed Records
+activate API
+deactivate Parser
+
+API -> API : Validate Schema & Process
+note right: Check columns, types, and logic
+
+API -> DB : Store Formatted Data
+activate DB
+DB --> API : Success
+deactivate DB
+
+API --> Trigger : Confirmation Response
+deactivate API
+
+@enduml

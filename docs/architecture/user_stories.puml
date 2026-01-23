@@ -1,0 +1,28 @@
+@startsalt
+title Detailed User Stories & Acceptance Criteria
+
+{
+  {T
+   + <b>Role</b> | <b>Feature</b> | <b>User Stories</b> | <b>Acceptance Criteria</b>
+   
+   <b>Sprint 1:</b> \n <b>Auth</b> | <b>1.a Secure Login</b> | As a **User**, I want to **log in** securely. | 1. Valid -> Home. \n 2. Invalid -> Error. \n 3. Secure Cookie.
+   . | <b>1.b RBAC</b> | As a **User**, I want **role-based navigation**. | 1. Finance: No Upload. \n 2. Badge shows role.
+   
+   <b>Sprint 2:</b> \n <b>Visualization</b> | <b>2.a Total Cost</b> | As a **DevOps/Fin/HOD**, view **aggregated total cost**. | 1. Card shows total.
+   . | <b>2.b Compare Cost</b> | As a **DevOps/Fin/HOD**, view **Current vs Prev Month**. | 1. % indicator (+/-).
+   . | <b>2.c Active Accts</b> | As a **DevOps/Fin/HOD**, view **active account count**. | 1. Card shows count.
+   . | <b>2.d Top Service</b> | As a **DevOps/Fin/HOD**, view **highest spend service**. | 1. Card shows name/cost.
+   . | <b>2.e Top 3 Accts</b> | As a **DevOps/Fin/HOD**, view **top 3 costly accounts**. | 1. Visual distinction.
+   . | <b>2.f Monthly Trend</b> | As a **DevOps/Fin/HOD**, view **monthly cost bar chart**. | 1. Last 6-12 months.
+   . | <b>2.g Cost Breakdown</b> | As a **DevOps/Fin/HOD**, view **cost by account** (Pie). | 1. Interactive slices.
+   . | <b>2.h Cost Table</b> | As a **DevOps/Fin/HOD**, view **monthly cost table**. | 1. Sortable columns.
+   . | <b>2.i Export CSV</b> | As a **DevOps/Fin/HOD**, **export table data**. | 1. Download CSV.
+   . | <b>2.j Account Trends</b> | As a **DevOps/Fin/HOD**, view **sparkline trends**. | 1. 6-month visual line.
+   . | <b>2.k Filter Period</b> | As a **DevOps/Fin/HOD**, **filter time range** (Q/Year). | 1. Updates charts.
+   . | <b>2.l Filter Account</b> | As a **DevOps/Fin/HOD**, **filter by specific account**. | 1. Global filter.
+   
+   <b>Sprint 3:</b> \n <b>Service</b> \n <b>Analysis</b> | <b>3.a Views</b> | As a **DevOps/Fin/HOD**, view **service costs**. | 1. Service Comparison Bar. \n 2. Trend Chart (Line/Bar). \n 3. Drill-down (Investigation).
+   . | <b>3.b Filters</b> | As a **DevOps/Fin/HOD**, **filter analysis views**. | 1. Comp Filter: Month/Acct. \n 2. Trend Filter: Svc/Acct.
+  }
+}
+@endsalt

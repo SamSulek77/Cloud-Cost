@@ -1,0 +1,45 @@
+@startuml
+title AWS Cost Dashboard – Manual File Upload Flow
+
+actor User
+participant Frontend
+participant "API Route" as API
+participant "CostReportController" as Controller
+participant "CsvParser" as Parser
+participant "DateParser" as DateParser
+participant "CsvReportToData" as DataOps
+database PostgreSQL as DB
+
+User -> Frontend : Upload CSV file
+Frontend -> API : POST /api/aws/cost-report/upload\n(multipart/form-data)
+API -> Controller : uploadReport(Request)
+
+Controller -> Controller : Validate file\n(CSV, max 100MB)
+Controller -> Parser : parse(fileContent)
+Parser -> Parser : Detect delimiter\nFind headers
+Parser --> Controller : parsed data
+
+Controller -> Parser : mapColumns(headers)
+Parser --> Controller : column mapping
+
+Controller -> Parser : processRows(data, columnMap)
+Parser --> Controller : raw cost data
+
+Controller -> DataOps : processData(rawData)
+DataOps -> DateParser : parseWithFormats(dateString)
+DateParser --> DataOps : formatted dates
+DataOps --> Controller : processed + aggregated data
+
+Controller -> DataOps : calculateSummary(aggregatedData)
+DataOps --> Controller : summary statistics
+
+Controller -> DataOps : saveToDatabase(userId, data, summary)
+DataOps -> DB : INSERT INTO cost_uploads
+DB --> DataOps : upload_id
+DataOps -> DB : BATCH INSERT INTO cost_records\n(chunks of 1000)
+DB --> DataOps : success
+DataOps --> Controller : upload record
+
+Controller --> Frontend : JSON response\n{upload_id, records_processed}
+Frontend --> User : Show success message
+@enduml

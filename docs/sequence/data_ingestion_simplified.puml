@@ -1,0 +1,45 @@
+@startuml
+title Data Ingestion (Manual Upload Flow)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam style strictuml
+
+actor "DevOps" as User
+participant "Dashboard" as Frontend
+participant "Backend System" as Backend
+database "Database" as DB
+
+box "Cost Dashboard System" #F9F9F9
+    participant Frontend
+    participant Backend
+end box
+
+frame "Manual Cost Report Upload" {
+    User -> Frontend : Upload Cost Report (CSV)
+    activate Frontend
+    
+    Frontend -> Backend : Request Upload (File)
+    activate Backend
+    
+    Backend -> Backend : Parse & Validate Schema
+    
+    alt Validation Successful
+        Backend -> DB : Store Cost Data
+        activate DB
+        DB --> Backend : Confirmation
+        deactivate DB
+        
+        Backend --> Frontend : Success Response
+        
+        Frontend --> User : Show Success Notification
+    else Validation Failed
+        Backend --> Frontend : Error Response (Invalid Format)
+        deactivate Backend
+        
+        Frontend --> User : Show Error Notification
+        deactivate Frontend
+    end
+}
+
+@enduml

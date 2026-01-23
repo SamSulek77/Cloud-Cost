@@ -1,0 +1,99 @@
+@startuml
+title AWS Cost Dashboard – Complete End-to-End Process
+
+actor User
+participant "Frontend (Next.js)" as Frontend
+participant "Laravel API" as API
+participant "Auth Logic" as Auth
+participant "CostReportController" as ReportCtrl
+participant "CostByService" as ServiceCtrl
+participant "CsvParser" as Parser
+participant "CsvReportToData" as DataOps
+database PostgreSQL as DB
+
+== 1. Authentication ==
+User -> Frontend : Login (Email/Password)
+Frontend -> API : POST /api/login
+API -> Auth : Validate Credentials
+Auth -> DB : Check User & Hash
+DB --> Auth : User Query Result
+alt Valid Credentials
+    Auth --> API : Generate Sanctum Token
+    API --> Frontend : Return Access Token
+    Frontend -> Frontend : Store Token & Redirect to Dashboard
+else Invalid Credentials
+    API --> Frontend : 401 Unauthorized
+    Frontend --> User : Show Error Message
+end
+
+== 2. Data Ingestion (Manual Upload Flow) ==
+note right of User
+  Alternative: S3 Webhook (Automated)
+  See s3_webhook.puml for details
+end note
+
+User -> Frontend : Upload Cost Report (CSV)
+Frontend -> API : POST /api/aws/cost-report/upload
+API -> ReportCtrl : uploadReport(Request)
+ReportCtrl -> Parser : parse(fileContent)
+Parser --> ReportCtrl : parsed data (mapped columns)
+
+ReportCtrl -> DataOps : processData(parsedData)
+DataOps -> DataOps : Aggregate & Format Dates
+DataOps --> ReportCtrl : processed records
+
+ReportCtrl -> DataOps : saveToDatabase()
+DataOps -> DB : INSERT cost_uploads
+DataOps -> DB : BATCH INSERT cost_records
+DB --> DataOps : Success
+DataOps --> ReportCtrl : Upload Summary
+ReportCtrl --> Frontend : 200 OK (Upload Complete)
+Frontend --> User : Show Success Notification
+
+== 3. Dashboard Visualization (Parallel Data Fetching) ==
+User -> Frontend : Load Dashboard (/home)
+
+par Fetch Monthly Trend
+    Frontend -> API : GET /aws/cost-report/monthly-trend
+    API -> ReportCtrl : monthlyTrend()
+    ReportCtrl -> DB : Query (Group by Month)
+    DB --> ReportCtrl : Trend Data
+    ReportCtrl --> Frontend : JSON Response
+end
+
+par Fetch Account Breakdown
+    Frontend -> API : GET /aws/cost-report/account-breakdown
+    API -> "CostBreakdown" as BreakCtrl : accountBreakdown()
+    BreakCtrl -> DB : Query (Group by Account)
+    DB --> BreakCtrl : Account Data
+    BreakCtrl --> Frontend : JSON Response
+end
+
+par Fetch Service Costs
+    Frontend -> API : GET /cost/services/by-account
+    API -> ServiceCtrl : serviceByAccount()
+    ServiceCtrl -> DB : Query (Group by Service)
+    DB --> ServiceCtrl : Service Data
+    ServiceCtrl --> Frontend : JSON Response
+end
+
+Frontend -> Frontend : Render Charts (Recharts)
+Frontend --> User : Display Interactive Dashboard
+
+== 4. Detailed Analysis (Filtering) ==
+User -> Frontend : View Service Analysis Page
+Frontend -> API : GET /cost/services/months
+API -> ServiceCtrl : availableMonths()
+ServiceCtrl -> DB : DISTINCT month_year
+DB --> ServiceCtrl : List of Months
+ServiceCtrl --> Frontend : Months List
+
+User -> Frontend : Select Month & Account Filter
+Frontend -> API : GET /cost/services/account/{account}?month_year=...
+API -> ServiceCtrl : servicesByAccount(Request, Account)
+ServiceCtrl -> DB : Query with WHERE clauses
+DB --> ServiceCtrl : Filtered Service Data
+ServiceCtrl --> Frontend : Updated Data
+Frontend --> User : Update Grid & Charts
+
+@enduml

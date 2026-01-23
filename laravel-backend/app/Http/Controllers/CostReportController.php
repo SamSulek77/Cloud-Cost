@@ -3,288 +3,354 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
+use App\CsvOperations\CsvParser;
+use App\CsvOperations\DateParser;
+use App\DataOperations\CsvReportToData;
+use Illuminate\Support\Facades\Storage;
+use App\Models\CostUpload;
 
 class CostReportController extends Controller
 {
+    private CsvParser $csvParser;
+    private DateParser $dateParser;
+    private CsvReportToData $dataOperations;
+
+    public function __construct(
+        CsvParser $csvParser,
+        DateParser $dateParser,
+        CsvReportToData $dataOperations
+    ) {
+        $this->csvParser = $csvParser;
+        $this->dateParser = $dateParser;
+        $this->dataOperations = $dataOperations;
+    }
+
     /**
-     * Upload and process AWS Cost Report CSV
+     * Upload and process cost report
      */
     public function uploadReport(Request $request)
     {
         try {
             Log::info('Upload request received');
 
-            $validator = Validator::make($request->all(), [
-                'file' => 'required|file|mimes:csv,txt|max:51200' // Max 50MB for large reports
+            // Validate file
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:102400',
+            ], [
+                'file.required' => 'Please select a file to upload',
+                'file.mimes' => 'Only CSV files are allowed',
+                'file.max' => 'File size must not exceed 100MB',
             ]);
 
-            if ($validator->fails()) {
-                Log::error('Validation failed', ['errors' => $validator->errors()]);
+            $file = $request->file('file');
+
+            if (!$file->isValid()) {
                 return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors()
+                    'error' => 'File upload failed: ' . $file->getErrorMessage()
                 ], 422);
             }
 
-            $file = $request->file('file');
-            
-            Log::info('Processing file', [
-                'name' => $file->getClientOriginalName(),
-                'size' => $file->getSize()
-            ]);
+            // Check file size
+            $fileSizeMB = $file->getSize() / 1024 / 1024;
+            Log::info("Uploading file: {$file->getClientOriginalName()}, Size: " . round($fileSizeMB, 2) . " MB");
 
-            $data = $this->parseCSV($file);
+            if ($fileSizeMB > 100) {
+                return response()->json([
+                    'error' => 'File size (' . round($fileSizeMB, 2) . ' MB) exceeds maximum allowed size of 100MB'
+                ], 422);
+            }
+
+            // Read file content
+            $content = file_get_contents($file->getRealPath());
             
+            if ($content === false || empty($content)) {
+                return response()->json(['error' => 'Cannot read file or file is empty'], 422);
+            }
+
+            // Parse CSV
+            $parsedCsv = $this->csvParser->parse($content);
+            $columnMap = $this->csvParser->mapColumns($parsedCsv['headers']);
+            
+            // Process rows
+            $processResult = $this->csvParser->processRows(
+                $parsedCsv['lines'],
+                $parsedCsv['delimiter'],
+                $parsedCsv['header_line_index'],
+                $columnMap
+            );
+
+            // Process and aggregate data
+            $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+
+            // 🛑 PREVENT DUPLICATE UPLOADS
+            // Check if this month already exists in the database
+            $uploadMonth = $dataResult['upload_month'];
+            
+            if ($uploadMonth !== 'Unknown' && \App\Models\CostUpload::where('month_year', $uploadMonth)->exists()) {
+                Log::warning("Duplicate upload attempt blocked for month: {$uploadMonth}");
+                return response()->json([
+                    'error' => "This cost report for {$uploadMonth} is already uploaded."
+                ], 422);
+            }
+
+            $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
+
+            // Save to database
+                $upload = $this->dataOperations->saveToDatabase(
+                $request->user()->id,
+                $file->getClientOriginalName(),
+                $dataResult['processed_data'],
+                $summary,                               // ✅ 5th
+                $dataResult['upload_month']             // ✅ 6th
+            );
+
             return response()->json([
                 'success' => true,
-                'data' => $data,
-                'message' => 'Report processed successfully'
+                'message' => 'Report uploaded and saved successfully',
+                'upload_id' => $upload->id,
+                'records_processed' => count($dataResult['processed_data']),
+                'accounts' => $summary['total_accounts'],
             ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => $e->validator->errors()->first()
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Upload error', [
                 'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'trace' => $e->getTraceAsString()
             ]);
             
             return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'Processing failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function importFromS3(Request $request)
+    {
+        try {
+            Log::info('S3 import request received');
+
+            $request->validate([
+                's3_key' => 'required|string',
+            ]);
+
+            $s3Key = $request->input('s3_key');
+
+            // 1️⃣ Get file content from S3 (NO local storage)
+            if (!Storage::disk('s3')->exists($s3Key)) {
+                return response()->json([
+                    'error' => 'File not found in S3'
+                ], 404);
+            }
+
+            $content = Storage::disk('s3')->get($s3Key);
+
+            if (empty($content)) {
+                return response()->json([
+                    'error' => 'S3 file is empty'
+                ], 422);
+            }
+
+            // 2️⃣ Reuse your EXISTING pipeline
+            $parsedCsv = $this->csvParser->parse($content);
+            $columnMap = $this->csvParser->mapColumns($parsedCsv['headers']);
+
+            $processResult = $this->csvParser->processRows(
+                $parsedCsv['lines'],
+                $parsedCsv['delimiter'],
+                $parsedCsv['header_line_index'],
+                $columnMap
+            );
+
+            $dataResult = $this->dataOperations->processData($processResult['raw_data']);
+
+            // 🛑 PREVENT DUPLICATE UPLOADS (S3)
+            $uploadMonth = $dataResult['upload_month'];
+            
+            if ($uploadMonth !== 'Unknown' && \App\Models\CostUpload::where('month_year', $uploadMonth)->exists()) {
+                Log::warning("Skipping S3 import: Month {$uploadMonth} already exists.");
+                return response()->json([
+                    'error' => "Skipped: Cost report for {$uploadMonth} is already uploaded."
+                ], 422);
+            }
+
+            $summary = $this->dataOperations->calculateSummary($dataResult['aggregated_data']);
+
+            // 3️⃣ Save to DB (same as upload)
+            $upload = $this->dataOperations->saveToDatabase(
+                $request->user()->id,
+                basename($s3Key),
+                $dataResult['processed_data'],
+                $summary,
+                $dataResult['upload_month']
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'S3 report imported successfully',
+                'upload_id' => $upload->id,
+                'records_processed' => count($dataResult['processed_data']),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('S3 import error', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'S3 import failed: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Parse CSV and extract required data
+     * Get all uploaded reports with aggregated data
      */
-    private function parseCSV($file)
-{
-    $path = $file->getRealPath();
-    $content = file_get_contents($path);
-    
-    // Remove BOM if present
-    $content = str_replace("\xEF\xBB\xBF", '', $content);
-    
-    // Detect delimiter
-    $delimiters = [',', ';', "\t", '|'];
-    $delimiter = ',';
-    $maxCount = 0;
-    
-    foreach ($delimiters as $del) {
-        $count = substr_count(substr($content, 0, 1000), $del);
-        if ($count > $maxCount) {
-            $maxCount = $count;
-            $delimiter = $del;
-        }
-    }
-    
-    Log::info("Detected delimiter: " . ($delimiter == "\t" ? "TAB" : $delimiter));
-    
-    // Parse with detected delimiter
-    $lines = explode("\n", $content);
-    if (empty($lines)) {
-        throw new \Exception('File is empty');
-    }
-    
-    // Get headers from first line
-    $headerLine = $lines[0];
-    $headers = str_getcsv($headerLine, $delimiter);
-    
-    // Clean headers
-    $headers = array_map(function($h) {
-        return trim($h);
-    }, $headers);
-    
-    Log::info('Total columns found: ' . count($headers));
-    Log::info('First 30 column names:', array_slice($headers, 0, 30));
-    
-    // Find columns
-    $accountCol = false;
-    $costCol = false;
-    $dateCol = false;
-    
-    foreach ($headers as $index => $header) {
-        $cleanHeader = strtolower(trim($header));
-        
-        if (stripos($header, 'LinkedAccount') !== false || 
-            stripos($header, 'linked_account') !== false ||
-            $cleanHeader == 'linkedaccountname') {
-            $accountCol = $index;
-            Log::info("Found account column at index $index: '$header'");
-        }
-        
-        if (stripos($header, 'TotalCost') !== false || 
-            stripos($header, 'total_cost') !== false ||
-            $cleanHeader == 'totalcost') {
-            $costCol = $index;
-            Log::info("Found cost column at index $index: '$header'");
-        }
-        
-        if (stripos($header, 'UsageEndDate') !== false || 
-            stripos($header, 'usage_end_date') !== false ||
-            $cleanHeader == 'usageenddate') {
-            $dateCol = $index;
-            Log::info("Found date column at index $index: '$header'");
-        }
-    }
-    
-    if ($accountCol === false || $costCol === false || $dateCol === false) {
-        // Show all column names for debugging
-        $allColumns = '';
-        foreach ($headers as $i => $h) {
-            $allColumns .= "[$i] '$h', ";
-        }
-        
-        throw new \Exception(
-            "Required columns not found.\n" .
-            "Looking for: LinkedAccountName, TotalCost, UsageEndDate\n" .
-            "All columns: $allColumns"
-        );
-    }
-    
-    Log::info("Using columns - Account: $accountCol, Cost: $costCol, Date: $dateCol");
-    
-    $data = [];
-    $rowNum = 0;
-    $skipped = 0;
-    
-    // Process data rows (skip header)
-    for ($i = 1; $i < count($lines); $i++) {
-        $line = trim($lines[$i]);
-        if (empty($line)) {
-            continue;
-        }
-        
-        $row = str_getcsv($line, $delimiter);
-        $rowNum++;
-        
-        if (count($row) <= max($accountCol, $costCol, $dateCol)) {
-            $skipped++;
-            continue;
-        }
-        
-        $account = trim($row[$accountCol] ?? '');
-        $cost = trim($row[$costCol] ?? '0');
-        $date = trim($row[$dateCol] ?? '');
-        
-        // Log first few rows for debugging
-        if ($rowNum <= 3) {
-            Log::info("Row $rowNum - Account: '$account', Cost: '$cost', Date: '$date'");
-        }
-        
-        if (empty($account) || empty($date) || $cost == '0' || $cost == '') {
-            $skipped++;
-            continue;
-        }
-        
-        $costFloat = floatval(str_replace(',', '', $cost));
-        
+    public function getAllReports(Request $request)
+    {
         try {
-            $month = Carbon::parse($date)->format('F Y');
+            // ✅ CHANGE: Remove user ID parameter
+            $data = $this->dataOperations->getAllReports();
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+
         } catch (\Exception $e) {
-            $month = 'Unknown';
+            Log::error('Get reports error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to fetch reports: ' . $e->getMessage()
+            ], 500);
         }
+    }
+
+    /**
+     * Get upload configuration limits
+     */
+    public function getUploadLimits()
+    {
+        $maxUpload = ini_get('upload_max_filesize');
+        $maxPost = ini_get('post_max_size');
         
-        $key = $account . '|' . $month;
+        return response()->json([
+            'success' => true,
+            'limits' => [
+                'max_upload_size' => $maxUpload,
+                'max_post_size' => $maxPost,
+                'max_upload_mb' => $this->parseSize($maxUpload) / 1024 / 1024,
+                'recommended_max_mb' => 100,
+            ]
+        ]);
+    }
+
+    /**
+     * Parse size string to bytes
+     */
+    private function parseSize($size)
+    {
+        $unit = strtoupper(substr($size, -1));
+        $value = (int) $size;
         
-        if (!isset($data[$key])) {
-            $data[$key] = [
-                'account_name' => $account,
-                'month' => $month,
-                'total_cost' => 0
+        switch($unit) {
+            case 'G': return $value * 1024 * 1024 * 1024;
+            case 'M': return $value * 1024 * 1024;
+            case 'K': return $value * 1024;
+            default: return $value;
+        }
+    }
+
+    public function index(Request $request)
+    {
+        try {
+            $perPage = (int) $request->query('per_page', 10);
+
+            // ✅ CHANGE: Remove user ID parameter
+            $data = $this->dataOperations->getAllReports($perPage);
+
+            return response()->json($data);
+
+        } catch (\Exception $e) {
+            Log::error('Costs index error', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to fetch costs'
+            ], 500);
+        }
+    }
+
+    public function monthlyTrend(Request $request)
+{
+    try {
+        $user = $request->user();
+        
+        if (!$user) {
+            Log::warning('monthlyTrend: No authenticated user');
+            return response()->json([
+                'error' => 'Unauthenticated'
+            ], 401);
+        }
+
+        Log::info('monthlyTrend: Fetching data for user', ['user_id' => $user->id]);
+
+        $rows = \DB::table('cost_records')
+            ->join('cost_uploads', 'cost_records.upload_id', '=', 'cost_uploads.id')
+            //remove user id so that data can be show to all users
+            ->whereNotNull('cost_records.month_year')
+            ->where('cost_records.month_year', '!=', 'Unknown')
+            ->where('cost_records.month_year', '!=', '')
+            ->select(
+                'cost_records.month_year',
+                \DB::raw('SUM(cost_records.cost) as total_cost')
+            )
+            ->groupBy('cost_records.month_year')
+            ->orderBy('cost_records.month_year')
+            ->get();
+
+        Log::info('monthlyTrend: Query executed', [
+            'rows_count' => $rows->count(),
+            'rows' => $rows->toArray()
+        ]);
+
+        $data = [];
+        foreach ($rows as $row) {
+            $data[] = [
+                'month' => $row->month_year,
+                'total_cost' => round((float) $row->total_cost, 2),
             ];
         }
+
+        Log::info('monthlyTrend: Returning data', [
+            'data_count' => count($data),
+            'data' => $data
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('monthlyTrend: Error occurred', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
         
-        $data[$key]['total_cost'] += $costFloat;
+        return response()->json([
+            'error' => 'Failed to fetch monthly trend: ' . $e->getMessage()
+        ], 500);
     }
-    
-    Log::info("Processed $rowNum rows, skipped $skipped rows, found " . count($data) . " unique entries");
-    
-    if (empty($data)) {
-        throw new \Exception("No valid data found. Processed $rowNum rows, all were skipped.");
-    }
-    
-    $result = array_values($data);
-    
-    // Calculate summary
-    $totalCost = 0;
-    $accounts = [];
-    
-    foreach ($result as $item) {
-        $totalCost += $item['total_cost'];
-        $accounts[$item['account_name']] = 
-            ($accounts[$item['account_name']] ?? 0) + $item['total_cost'];
-    }
-    
-    arsort($accounts);
-    
-    return [
-        'details' => $result,
-        'summary' => [
-            'total_cost' => round($totalCost, 2),
-            'total_accounts' => count($accounts),
-            'cost_by_account' => $accounts
-        ]
-    ];
 }
 
     /**
-     * Find column index by trying multiple possible names
+     * DEBUG: Cleanup duplicate uploads
      */
-    private function findColumnIndex($headers, $possibleNames)
-    {
-        foreach ($possibleNames as $name) {
-            $index = array_search($name, $headers);
-            if ($index !== false) {
-                return $index;
-            }
-            
-            // Case-insensitive search
-            foreach ($headers as $i => $header) {
-                if (strcasecmp($header, $name) === 0) {
-                    return $i;
-                }
-            }
-        }
-        return false;
-    }
-    
-    /**
-     * Calculate summary statistics
-     */
-    private function calculateSummary($data)
-    {
-        $totalCost = 0;
-        $accountCosts = [];
-        $monthlyCosts = [];
-        
-        foreach ($data as $item) {
-            $totalCost += $item['total_cost'];
-            
-            // By account
-            if (!isset($accountCosts[$item['account_name']])) {
-                $accountCosts[$item['account_name']] = 0;
-            }
-            $accountCosts[$item['account_name']] += $item['total_cost'];
-            
-            // By month
-            if (!isset($monthlyCosts[$item['month']])) {
-                $monthlyCosts[$item['month']] = 0;
-            }
-            $monthlyCosts[$item['month']] += $item['total_cost'];
-        }
-        
-        // Sort accounts by cost (descending)
-        arsort($accountCosts);
-        
-        return [
-            'total_cost' => round($totalCost, 2),
-            'total_accounts' => count($accountCosts),
-            'cost_by_account' => $accountCosts,
-            'cost_by_month' => $monthlyCosts
-        ];
-    }
+
+
 }

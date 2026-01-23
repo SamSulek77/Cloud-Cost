@@ -5,6 +5,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Http\Controllers\CostReportController;
+use App\Http\Controllers\CostBreakdown;
+use App\Http\Controllers\CostByService;
+use App\Http\Controllers\S3CostReportController;
+use App\Http\Controllers\CostInvestigationController;
 
 Route::post('/register', function (Request $request) {
     $request->validate([
@@ -39,10 +43,45 @@ Route::post('/login', function (Request $request) {
 
 Route::middleware('auth:sanctum')->get('/user', fn(Request $request) => $request->user());
 
-// Cost Report Upload
-Route::post('/aws/cost-report/upload', [CostReportController::class, 'uploadReport']);
+Route::get('/costs', [CostReportController::class, 'index']);
+
+// Original Manual Upload (keep this for backwards compatibility)
+Route::middleware(['auth:sanctum', 'role:devops,super_admin,admin'])
+    ->post('/aws/cost-report/upload', [CostReportController::class, 'uploadReport']);
+
+// NEW: S3 Import Routes
+Route::middleware(['auth:sanctum', 'role:devops,super_admin,admin'])->group(function () {
+    // S3 Manual Sync Trigger
+    Route::post('/aws/s3/sync', [App\Http\Controllers\S3SyncController::class, 'sync']);
+});
+
+Route::middleware('auth:sanctum')
+    ->get('/aws/cost-report/all', [CostReportController::class, 'getAllReports']);
 
 Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
     $request->user()->currentAccessToken()->delete();
     return response()->json(['message' => 'Logged out successfully']);
 });
+
+Route::middleware('auth:sanctum')
+    ->get('/aws/cost-report/monthly-trend', [CostReportController::class, 'monthlyTrend']);
+
+Route::middleware('auth:sanctum')
+    ->get('/aws/cost-report/account-breakdown', [CostBreakdown::class, 'accountBreakdown']); 
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Service cost endpoints
+    Route::get('/cost/services/by-account', [CostByService::class, 'serviceByAccount']);
+    Route::get('/cost/services/top', [CostByService::class, 'topServices']);
+    Route::get('/cost/services/account/{accountName}', [CostByService::class, 'servicesByAccount']);
+    Route::get('/cost/services/trends', [CostByService::class, 'serviceTrends']);
+    Route::get('/cost/services/months', [CostByService::class, 'availableMonths']);
+    Route::get('/cost/services/by-month', [CostByService::class, 'serviceByMonth']);
+    
+    // Cost Investigation
+    Route::get('/cost/investigation/compare', [CostInvestigationController::class, 'compare']);
+});
+
+// S3 Webhook (no auth required - AWS will call this)
+Route::post('/aws/s3/webhook', [App\Http\Controllers\S3WebhookController::class, 'handleS3Event'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
