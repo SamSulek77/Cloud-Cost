@@ -82,6 +82,7 @@ export default function AccountBreakdownChart({ onFilterChange }: AccountBreakdo
                 else if (monthIndex >= 6 && monthIndex <= 8) quarter = 'Q3';
                 else quarter = 'Q4';
 
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setTimeFilter(quarter);
                 hasSetDefaultFilter.current = true;
             }
@@ -134,6 +135,7 @@ export default function AccountBreakdownChart({ onFilterChange }: AccountBreakdo
     // Auto-select all accounts ONLY when first loaded
     useEffect(() => {
         if (accounts.length > 0 && !hasInitialized.current) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedAccounts(accounts);
             hasInitialized.current = true;
         }
@@ -185,7 +187,7 @@ export default function AccountBreakdownChart({ onFilterChange }: AccountBreakdo
                         </Button>
                     ) : (
                         <div className="w-[200px]">
-                            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+                            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as 'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4')}>
                                 <SelectTrigger className="h-9 bg-white border-gray-200">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-gray-500" />

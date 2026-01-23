@@ -312,6 +312,7 @@ export default function ServiceAnalysisPage() {
                                                     tickLine={false}
                                                     tick={{ fontSize: 12, fill: '#6b7280' }}
                                                     dy={10}
+                                                    interval={0} // Force show all labels
                                                 />
                                                 <YAxis
                                                     axisLine={false}
@@ -341,6 +342,7 @@ export default function ServiceAnalysisPage() {
                                                     tickLine={false}
                                                     tick={{ fontSize: 12, fill: '#6b7280' }}
                                                     dy={10}
+                                                    interval={0} // Force show all labels
                                                 />
                                                 <YAxis
                                                     axisLine={false}

@@ -67,7 +67,12 @@ export default function AccountCostTable() {
     // 4. Auto-select latest month on load
     useEffect(() => {
         if (months.length > 0 && !selectedMonth) {
-            setSelectedMonth(months[months.length - 1]);
+            const latestMonth = months[months.length - 1];
+            // Prevent unnecessary updates if already set
+            if (selectedMonth !== latestMonth) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setSelectedMonth(latestMonth);
+            }
         }
     }, [months, selectedMonth]);
 

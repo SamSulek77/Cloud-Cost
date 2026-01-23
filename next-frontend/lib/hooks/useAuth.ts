@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { isAxiosError } from 'axios';
 import axios from '@/lib/axios';
 import { User } from '@/types';
 import { API_ENDPOINTS } from '@/lib/constants';
@@ -41,11 +42,13 @@ export function useAuth(requireAuth = true): UseAuthResult {
 
                 setUser(response.data);
                 setError(null);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch user:', err);
                 setError('Failed to authenticate user.');
 
-                if (requireAuth && (err.response?.status === 401 || err.response?.status === 403)) {
+                const isAuthError = isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403);
+
+                if (requireAuth && isAuthError) {
                     removeCookie('token');
                     router.push('/login');
                 }

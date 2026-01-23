@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Home, Settings, Upload, ChevronLeft, ChevronRight, TrendingUp, PieChart, BarChart3, ChevronDown, Table, RefreshCw } from 'lucide-react';
+import { LogOut, Home, Upload, ChevronLeft, ChevronRight, TrendingUp, PieChart, BarChart3, ChevronDown, Table, RefreshCw } from 'lucide-react';
+import Image from 'next/image';
 import { removeCookie } from '@/lib/cookies';
 import { cn } from '@/lib/utils';
 import axios from '@/lib/axios';
@@ -72,7 +73,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
       // Dispatch event AFTER user acknowledges the alert
       window.dispatchEvent(new Event('cost-data-updated'));
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Cloud Sync failed:', error);
       setSyncStatus('error');
       alert('Cloud Sync failed. Please check the logs.');
@@ -105,14 +106,16 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         {/* Logo */}
         <div className="p-6 border-b border-gray-200 flex justify-center overflow-hidden">
           <div className="flex items-center gap-2">
-            <img
-              src="/images/logo.png"
-              alt="Silentmode Logo"
-              className={cn(
-                "transition-all duration-300 object-contain",
-                isCollapsed ? "h-8 w-8" : "h-13 w-auto"
-              )}
-            />
+            <div className={cn("relative transition-all duration-300", isCollapsed ? "h-8 w-8" : "h-13 w-auto")}>
+              <Image
+                src="/images/logo.png"
+                alt="Silentmode Logo"
+                width={isCollapsed ? 32 : 150}
+                height={isCollapsed ? 32 : 52}
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
         </div>
 

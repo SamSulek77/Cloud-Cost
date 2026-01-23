@@ -9,8 +9,7 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Legend,
-    Cell
+    Legend
 } from 'recharts';
 import {
     Card,
@@ -152,7 +151,7 @@ export default function ServiceComparisonChart() {
                             Back to Overview
                         </Button>
                     ) : (
-                        <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+                        <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as 'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4')}>
                             <SelectTrigger className="w-[180px]">
                                 <Calendar className="w-4 h-4 mr-2" />
                                 <SelectValue />

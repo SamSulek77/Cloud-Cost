@@ -76,7 +76,11 @@ export default function ServiceCostBarChart() {
   useEffect(() => {
     if (months.length > 0 && !selectedMonth) {
       // Default to latest month (Current Month)
-      setSelectedMonth(months[months.length - 1]);
+      const latestMonth = months[months.length - 1];
+      if (selectedMonth !== latestMonth) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedMonth(latestMonth);
+      }
     }
 
     if (rows.length > 0 && !selectedAccount) {

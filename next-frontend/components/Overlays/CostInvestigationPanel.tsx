@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, TrendingUp, TrendingDown, ArrowRight, Database, ChevronsRight, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { TrendingUp, ArrowRight, Database, ChevronsRight, ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { API_ENDPOINTS } from '@/lib/constants';
-import { useAuth } from '@/lib/hooks/useAuth';
 import axios from '@/lib/axios';
 
 interface CostInvestigationPanelProps {
@@ -17,6 +15,11 @@ interface CostInvestigationPanelProps {
     monthA: string;      // "November 2025"
     monthB: string;      // "December 2025"
     accountName?: string | null;
+}
+
+interface SummaryData {
+    total_change: number;
+    total_percent_change: number;
 }
 
 interface UsageTypeChange {
@@ -40,10 +43,10 @@ export default function CostInvestigationPanel({
     monthB,
     accountName
 }: CostInvestigationPanelProps) {
-    const { user } = useAuth();
+    // const { user } = useAuth(); // Unused
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<UsageTypeChange[]>([]);
-    const [summary, setSummary] = useState<any>(null);
+    const [summary, setSummary] = useState<SummaryData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showAll, setShowAll] = useState(false);
 
@@ -52,6 +55,7 @@ export default function CostInvestigationPanel({
             fetchInvestigationData();
             setShowAll(false); // Reset on open
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, productCode, monthA, monthB]);
 
     const fetchInvestigationData = async () => {
@@ -115,7 +119,6 @@ export default function CostInvestigationPanel({
                     </div>
                 </div>
 
-                {/* Summary Stats */}
                 {/* Summary Stats */}
                 {summary && (
                     <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">

@@ -37,7 +37,7 @@ export default function MonthlyTrendChart() {
         if (!apiResponse?.data || !Array.isArray(apiResponse.data)) return [];
 
         return apiResponse.data
-            .map((item: any) => ({
+            .map((item: ChartPoint) => ({
                 month: item.month,
                 total_cost: Number(item.total_cost),
             }))

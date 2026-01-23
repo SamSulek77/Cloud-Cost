@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { isAxiosError } from 'axios';
 import axios from '@/lib/axios';
 import { getCookie } from '@/lib/cookies';
 
@@ -30,11 +31,22 @@ export function useChartData<T>(endpoint: string): UseChartDataResult<T> {
             });
 
             setData(response.data);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(`Failed to fetch data from ${endpoint}:`, err);
-            const errorMessage = err.response?.status === 401
+
+            let status: number | undefined;
+            let message: string | undefined;
+
+            if (isAxiosError(err)) {
+                status = err.response?.status;
+                message = err.message;
+            } else if (err instanceof Error) {
+                message = err.message;
+            }
+
+            const errorMessage = status === 401
                 ? 'Authentication failed. Please log in again.'
-                : err.message || 'Failed to load data. Please try again.';
+                : message || 'Failed to load data. Please try again.';
 
             setError(errorMessage);
         } finally {

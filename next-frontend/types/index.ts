@@ -30,7 +30,7 @@ export interface ApiResponse<T> {
     error?: string;
     // Specific fields for certain endpoints
     accounts?: string[];
-    grouped?: any;
+    grouped?: Record<string, unknown>;
 }
 
 export interface SettingsData {
