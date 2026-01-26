@@ -13,6 +13,7 @@ import AccountCostTable from '@/components/Tables/AccountCostTable';
 import AccountTrendTable from '@/components/Tables/AccountTrendTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Users, CreditCard, Activity, Database } from 'lucide-react';
+import { SyncStatus } from '@/components/Sync/SyncStatus'; // Add import
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -210,6 +211,7 @@ export default function HomePage() {
           <p className="text-gray-500 mt-1">
             Here's an overview of cloud spending and latest cost trends.
           </p>
+          <SyncStatus />
         </div>
 
         {/* KPI Cards (The "Keep This" part) */}

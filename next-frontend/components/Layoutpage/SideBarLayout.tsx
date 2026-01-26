@@ -65,8 +65,25 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     setSyncStatus('idle');
 
     try {
+      //test error sync status
+      {/*throw new Error("Simulated Test Error");*/ }
+
       const response = await axios.post(API_ENDPOINTS.S3_SYNC);
       setSyncStatus('success');
+
+      // 1. Create formatted date string
+      const now = new Date();
+      // Format: "26 January, 16:15"
+      const datePart = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const timePart = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const fullTimeString = `${datePart}, ${timePart}`;
+
+      // 2. Save to localStorage
+      localStorage.setItem('sync_status', 'success');
+      localStorage.setItem('sync_timestamp', fullTimeString);
+
+      // 3. Dispatch event so other components update immediately
+      window.dispatchEvent(new Event('sync-status-updated'));
 
       alert(response.data.message || 'Sync completed successfully.');
 
@@ -76,6 +93,11 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
     } catch (error: unknown) {
       console.error('Cloud Sync failed:', error);
       setSyncStatus('error');
+
+      // Track errors too
+      localStorage.setItem('sync_status', 'error');
+      window.dispatchEvent(new Event('sync-status-updated'));
+
       alert('Cloud Sync failed. Please check the logs.');
     } finally {
       setIsSyncing(false);

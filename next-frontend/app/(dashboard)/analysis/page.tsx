@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { SyncStatus } from '@/components/Sync/SyncStatus';
 
 export default function ServiceAnalysisPage() {
     const { user, loading: authLoading } = useAuth();
@@ -214,6 +215,7 @@ export default function ServiceAnalysisPage() {
                     <p className="text-gray-500 mt-1">
                         Analyze cost distribution and cost investigation for specific AWS services per account.
                     </p>
+                    <SyncStatus />
                 </div>
 
                 {/* Service Cost Breakdown Section with Toggle */}
