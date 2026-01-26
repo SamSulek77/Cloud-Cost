@@ -13,6 +13,9 @@ import AccountCostTable from '@/components/Tables/AccountCostTable';
 import AccountTrendTable from '@/components/Tables/AccountTrendTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Users, CreditCard, Activity, Database } from 'lucide-react';
+import QuoteBox from '@/components/QuoteBox';
+import RandomQuote from '@/components/RandomQuote';
+import RandomQuote2 from '@/components/RandomQuote2';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -325,7 +328,9 @@ export default function HomePage() {
           <AccountTrendTable />
         </div>
 
-
+        <QuoteBox />
+        <RandomQuote />
+        <RandomQuote2 />
       </div>
     </DashboardLayout>
   );

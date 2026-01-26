@@ -25,5 +25,8 @@ export const API_ENDPOINTS = {
     SETTINGS: '/user/settings',
     UPLOAD: '/aws/cost-report/upload',
     COST_INVESTIGATION: '/cost/investigation/compare',
+    QUOTE: '/quote',
     S3_SYNC: '/aws/s3/sync',
+    QUOTE2: '/quote2',
+    QUOTE3: '/quote3',
 };

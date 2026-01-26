@@ -3,6 +3,8 @@ export interface ChartPoint {
     total_cost: number;
 }
 
+
+
 export interface AccountBreakdownPoint {
     month: string;
     [key: string]: string | number;
@@ -57,4 +59,19 @@ export interface ServiceTrendItem {
     product_code: string;
     product_name: string;
     total_cost: number;
+}
+
+export interface Quote {
+    quote: string;
+    author: string;
+}
+
+export interface Quote2 {
+    quote: string;
+    author: string;
+}
+
+export interface Quote3 {
+    quote: string;
+    author: string;
 }
