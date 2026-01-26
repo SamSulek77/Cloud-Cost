@@ -105,6 +105,7 @@ Route::get('/quote2', function () {
     ]);
 });
 
+//third practice here
 Route::get('/quote3', function () {
     return response()->json([
         "quote"=>"bismillah fyp, dont kirkify yourself",
