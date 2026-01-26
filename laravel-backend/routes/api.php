@@ -10,6 +10,7 @@ use App\Http\Controllers\CostByService;
 use App\Http\Controllers\S3CostReportController;
 use App\Http\Controllers\CostInvestigationController;
 
+
 Route::post('/register', function (Request $request) {
     $request->validate([
         'name' => 'required',
@@ -80,8 +81,33 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Cost Investigation
     Route::get('/cost/investigation/compare', [CostInvestigationController::class, 'compare']);
+
+
 });
 
 // S3 Webhook (no auth required - AWS will call this)
 Route::post('/aws/s3/webhook', [App\Http\Controllers\S3WebhookController::class, 'handleS3Event'])
     ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+
+//my prsctice here
+Route::get('/quote', function () {
+    return response()->json([
+        "quote" => "stop saying 67 in this big 2026!!!",
+        "author" => "Nor Kirk"
+    ]);
+});
+
+//my second practice here
+Route::get('/quote2', function () {
+    return response()->json ([
+        "quote"=>"in my mind,i am the best",
+        "author"=>"kirkiy"
+    ]);
+});
+
+Route::get('/quote3', function () {
+    return response()->json([
+        "quote"=>"bismillah fyp, dont kirkify yourself",
+        "author"=>"nortzy"
+    ]);
+});
