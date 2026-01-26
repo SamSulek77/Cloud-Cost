@@ -339,6 +339,21 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           {children}
         </div>
       </main>
+
+      {/* Global Loading Overlay for Sync */}
+      {isSyncing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center space-y-4">
+            <div className="p-3 bg-blue-50 rounded-full">
+              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900">Syncing Data</h3>
+              <p className="text-sm text-gray-500">Sync with S3 to get the latest cost report in process..</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
