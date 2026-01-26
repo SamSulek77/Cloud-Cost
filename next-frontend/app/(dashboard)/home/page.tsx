@@ -6,13 +6,13 @@ import RandomQuote from '@/components/practice/RandomQuote';
 import RandomQuote2 from '@/components/practice/RandomQuote2';
 import { PracticeAlert } from '@/components/practice/PracticeAlert';
 import { CalendarUI } from '@/components/practice/calendarUI';
+import { Slider } from "@/components/ui/slider"
+import { SwitchUI } from "@/components/practice/switchUI"
 
 export default function HomePage() {
 
   return (
     <DashboardLayout>
-
-
       <QuoteBox />
       <RandomQuote />
       <RandomQuote2 />
@@ -23,6 +23,8 @@ export default function HomePage() {
           <CalendarUI key={index} />
         ))}
       </div>
+      <div className="mt-8"><Slider /></div>
+      <div className="mt-8"><SwitchUI /></div>
     </DashboardLayout>
   );
 }
