@@ -5,11 +5,11 @@ import axios from '@/lib/axios';
 import { API_ENDPOINTS, CHART_COLORS } from '@/lib/constants';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { ServiceCostItem, ApiResponse } from '@/types';
-import { Filter, BarChart2, LineChart as LineChartIcon } from "lucide-react"
-import { Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from "recharts"
-import { Loader2 } from 'lucide-react';
+import { Filter, BarChart2, LineChart as LineChartIcon, TrendingUp, Loader2 } from "lucide-react"
+import { Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell, ReferenceLine } from "recharts"
 import ServiceComparisonChart from '@/components/Charts/ServiceComparisonChart';
 import ServiceCostBarChart from '@/components/Charts/ServiceCostBarChart';
+import { ForecastControl } from '@/components/Charts/ForecastControl';
 import CostInvestigationPanel from '@/components/Overlays/CostInvestigationPanel';
 import DashboardLayout from '@/components/Layoutpage/SideBarLayout';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +28,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { SyncStatus } from '@/components/Sync/SyncStatus';
+import { formatCurrency } from "@/lib/utils";
 
 export default function ServiceAnalysisPage() {
     const { user, loading: authLoading } = useAuth();
@@ -57,6 +58,119 @@ export default function ServiceAnalysisPage() {
     } | null>(null);
 
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // FORECASTING STATE
+    const [showForecast, setShowForecast] = useState(false);
+    const [baseline, setBaseline] = useState(100); // Default baseline
+    const [forecastData, setForecastData] = useState<{ month: string; cost: number } | null>(null);
+
+    // Load Baseline/Config settings per service
+    useEffect(() => {
+        if (!selectedAccount || !selectedService) return;
+
+        const storageKey = `baseline_${selectedAccount}_${selectedService}`;
+        const savedBaseline = localStorage.getItem(storageKey);
+
+        if (savedBaseline) {
+            setBaseline(Number(savedBaseline));
+        } else {
+            // Calculate average as default if no saved baseline
+            if (monthlyTrend.length > 0) {
+                const avg = monthlyTrend.reduce((sum, item) => sum + Number(item.visitors), 0) / monthlyTrend.length;
+                setBaseline(Math.round(avg));
+            } else {
+                setBaseline(100);
+            }
+        }
+
+        // We can choose to persist toggle globally or per service. Globally seems better for UX.
+        const savedShowForecast = localStorage.getItem('aws_show_forecast');
+        if (savedShowForecast === 'true') setShowForecast(true); // Reuse global preference
+
+    }, [selectedAccount, selectedService, monthlyTrend]);
+
+    const handleSetBaseline = (val: number) => {
+        setBaseline(val);
+        if (selectedAccount && selectedService) {
+            const storageKey = `baseline_${selectedAccount}_${selectedService}`;
+            localStorage.setItem(storageKey, val.toString());
+        }
+    };
+
+    const handleSetShowForecast = (show: boolean) => {
+        setShowForecast(show);
+        localStorage.setItem('aws_show_forecast', show.toString());
+    };
+
+    // Fetch Forecast Data
+    useEffect(() => {
+        const fetchForecast = async () => {
+            if (!selectedAccount || !selectedService) return;
+
+            try {
+                const res = await axios.get('/aws/cost-report/forecast', {
+                    params: {
+                        account: selectedAccount,
+                        product_code: selectedService
+                    }
+                });
+
+                if (res.data.success) {
+                    setForecastData({
+                        month: res.data.forecast_month,
+                        cost: res.data.forecast_cost
+                    });
+                } else {
+                    setForecastData(null);
+                }
+            } catch (err) {
+                console.error("Failed to fetch forecast for service", err);
+                setForecastData(null);
+            }
+        };
+
+        fetchForecast();
+    }, [selectedAccount, selectedService]);
+
+    // Prepare chart data with forecast
+    const chartDataWithForecast = useMemo(() => {
+        const sorted = [...monthlyTrend].sort((a, b) => new Date(a.browser).getTime() - new Date(b.browser).getTime());
+
+        if (showForecast && forecastData) {
+            return [
+                ...sorted,
+                {
+                    browser: forecastData.month + ' (Est)',
+                    visitors: forecastData.cost,
+                    fill: '#8b5cf6', // Purple for forecast
+                    isForecast: true
+                }
+            ];
+        }
+        return sorted;
+    }, [monthlyTrend, showForecast, forecastData]);
+
+    // Calculate Latest Month Status for Alert
+    const latestMonthStatus = useMemo(() => {
+        if (!monthlyTrend || monthlyTrend.length === 0) return null;
+
+        // Find latest actual data point
+        const sortedData = [...monthlyTrend].sort((a, b) => {
+            return new Date(a.browser).getTime() - new Date(b.browser).getTime();
+        });
+        const lastMonth = sortedData[sortedData.length - 1];
+        const lastCost = Number(lastMonth.visitors);
+
+        if (showForecast && lastCost > baseline) {
+            return {
+                isOver: true,
+                month: lastMonth.browser,
+                cost: lastCost,
+                diff: lastCost - baseline
+            };
+        }
+        return null;
+    }, [monthlyTrend, baseline, showForecast]);
 
     // Helper to find previous month
     const getPreviousMonth = (currentMonth: string, allData: any[]) => {
@@ -303,10 +417,37 @@ export default function ServiceAnalysisPage() {
 
                             </CardHeader>
                             <CardContent>
+                                {/* LATEST MONTH ALERT */}
+                                {latestMonthStatus && (
+                                    <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-md flex items-center gap-2 text-sm text-red-700 animate-in fade-in slide-in-from-top-2">
+                                        <TrendingUp className="h-4 w-4" />
+                                        <span>
+                                            <strong>Alert:</strong> {latestMonthStatus.month} cost ({formatCurrency(latestMonthStatus.cost)})
+                                            exceeds budget by <strong>{formatCurrency(latestMonthStatus.diff)}</strong>.
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="mb-6">
+                                    {selectedAccount && selectedService && (
+                                        <ForecastControl
+                                            showForecast={showForecast}
+                                            setShowForecast={handleSetShowForecast}
+                                            baseline={baseline}
+                                            setBaseline={handleSetBaseline}
+                                            maxBudget={Math.max(
+                                                ...(monthlyTrend.length > 0 ? monthlyTrend.map(d => Number(d.visitors)) : [100]),
+                                                forecastData?.cost || 0
+                                            )}
+                                            forecastValue={forecastData?.cost || 0}
+                                        />
+                                    )}
+                                </div>
+
                                 <div className="h-[400px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         {chartType === 'line' ? (
-                                            <LineChart data={[...monthlyTrend].sort((a, b) => new Date(a.browser).getTime() - new Date(b.browser).getTime())}>
+                                            <LineChart data={chartDataWithForecast}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                                                 <XAxis
                                                     dataKey="browser"
@@ -334,9 +475,32 @@ export default function ServiceAnalysisPage() {
                                                     dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4, stroke: '#fff', cursor: 'pointer' }}
                                                     activeDot={{ r: 6, strokeWidth: 0, onClick: (_: any, payload: any) => handleChartClick(payload.payload), cursor: 'pointer' }}
                                                 />
+                                                {/* Forecast Line Segment (Dashed) */}
+                                                {showForecast && forecastData && chartDataWithForecast.length > 1 && (
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="visitors"
+                                                        stroke="#8b5cf6"
+                                                        strokeWidth={3}
+                                                        strokeDasharray="5 5"
+                                                        data={[
+                                                            chartDataWithForecast[chartDataWithForecast.length - 2],
+                                                            chartDataWithForecast[chartDataWithForecast.length - 1]
+                                                        ]}
+                                                        dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                                                    />
+                                                )}
+                                                {showForecast && (
+                                                    <ReferenceLine
+                                                        y={baseline}
+                                                        label={{ position: 'insideTopRight', value: 'Budget Baseline', fill: 'red', fontSize: 12 }}
+                                                        stroke="red"
+                                                        strokeDasharray="3 3"
+                                                    />
+                                                )}
                                             </LineChart>
                                         ) : (
-                                            <BarChart data={[...monthlyTrend].sort((a, b) => new Date(a.browser).getTime() - new Date(b.browser).getTime())}>
+                                            <BarChart data={chartDataWithForecast}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                                                 <XAxis
                                                     dataKey="browser"
@@ -359,13 +523,25 @@ export default function ServiceAnalysisPage() {
                                                 <Bar
                                                     dataKey="visitors"
                                                     radius={[4, 4, 0, 0]}
-                                                    onClick={(data) => handleChartClick(data)}
+                                                    onClick={(data) => !data.isForecast && handleChartClick(data)} // Disable click for forecast
                                                     className="cursor-pointer hover:opacity-80 transition-opacity"
                                                 >
-                                                    {monthlyTrend.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                                    {chartDataWithForecast.map((entry: any, index: number) => (
+                                                        <Cell
+                                                            key={`cell-${index}`}
+                                                            fill={entry.isForecast ? '#8b5cf6' : CHART_COLORS[index % CHART_COLORS.length]}
+                                                            opacity={entry.isForecast ? 0.5 : 1}
+                                                        />
                                                     ))}
                                                 </Bar>
+                                                {showForecast && (
+                                                    <ReferenceLine
+                                                        y={baseline}
+                                                        label={{ position: 'insideTopRight', value: 'Budget Baseline', fill: 'red', fontSize: 12 }}
+                                                        stroke="red"
+                                                        strokeDasharray="3 3"
+                                                    />
+                                                )}
                                             </BarChart>
                                         )}
                                     </ResponsiveContainer>

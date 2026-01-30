@@ -49,13 +49,14 @@ export default function UploadPage() {
         formData.append('file', file);
 
         try {
-            await axios.post(API_ENDPOINTS.UPLOAD, formData, {
+            const response = await axios.post(API_ENDPOINTS.UPLOAD, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
 
-            setMessage({ type: 'success', text: 'File uploaded successfully!' });
+            setMessage({ type: 'success', text: 'File uploaded successfully! Check your dashboard for findings.' });
+
             setFile(null);
             // Reset file input
             const fileInput = document.getElementById('file-upload') as HTMLInputElement;
